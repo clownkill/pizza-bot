@@ -88,17 +88,17 @@ def create_product(token, product):
     add_product_image(token, stored_product_id, product_image_id)
 
 
-def add_flows_and_get_id(token, name, description):
+def add_flows_and_get_id_slug(token, name, description):
     url = 'https://api.moltin.com/v2/flows'
+    slug = name.lower()
     headers = {
         'Authorization': f'{token}',
     }
-
     json_data = {
         'data': {
             'type': 'flow',
             'name': name,
-            'slug': str(uuid4())[-12:],
+            'slug': slug,
             'description': description,
             'enabled': True,
         },
@@ -109,7 +109,7 @@ def add_flows_and_get_id(token, name, description):
 
     flows = response.json()
 
-    return flows['data']['id']
+    return flows['data']['id'], slug
 
 
 def create_flows_field(token, flow_id, field_name, field_description, field_type):
@@ -122,14 +122,11 @@ def create_flows_field(token, flow_id, field_name, field_description, field_type
         'data': {
             'type': 'field',
             'name': field_name,
-            'slug': str(uuid4())[-12:],
+            'slug': field_name.lower(),
             'field_type': field_type,
             'description': field_description,
             'required': True,
-            'default': 0,
             'enabled': True,
-            'order': 1,
-            'omit_null': False,
             'relationships': {
                 'flow': {
                     'data': {
@@ -139,6 +136,27 @@ def create_flows_field(token, flow_id, field_name, field_description, field_type
                 },
             },
         },
+    }
+
+    response = requests.post(url, headers=headers, json=json_data)
+    response.raise_for_status()
+
+
+def add_pizzeria_info(token, flow_slug, pizzeria):
+    url = f'https://api.moltin.com/v2/flows/{flow_slug}/entries'
+    headers = {
+        'Authorization': f'{token}',
+        'Content-Type': 'application/json',
+    }
+    json_data = {
+        "data":
+            {
+                "type": "entry",
+                "address": pizzeria['address']['full'],
+                "alias": pizzeria['alias'],
+                "longitude": float(pizzeria['coordinates']['lon']),
+                "latitude": float(pizzeria['coordinates']['lat']),
+            },
     }
 
     response = requests.post(url, headers=headers, json=json_data)

@@ -7,8 +7,9 @@ import requests
 
 from shop import (get_client_token_info,
                   create_product,
-                  add_flows_and_get_id,
-                  create_flows_field
+                  add_flows_and_get_id_slug,
+                  create_flows_field,
+                  add_pizzeria_info
                   )
 
 
@@ -38,6 +39,11 @@ def add_categories(token, flow_id):
     create_flows_field(token, flow_id, 'Latitude', 'Latitude pizzeria coordinates', 'float')
 
 
+def add_pizzerias(token, flow_slug, pizzerias):
+    for pizzeria in pizzerias:
+        add_pizzeria_info(token, flow_slug, pizzeria)
+
+
 if __name__ == '__main__':
     load_dotenv()
     client_id = os.getenv('CLIENT_ID')
@@ -50,8 +56,3 @@ if __name__ == '__main__':
 
     token = get_client_token_info(client_id, client_secret, grant_type)['access_token']
 
-    name = 'Pizzeria'
-    description = 'Pizzeria with address and coordinates'
-
-    flow_id = add_flows_and_get_id(token, name, description)
-    add_categories(token, flow_id)
