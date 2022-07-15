@@ -6,9 +6,9 @@ from dotenv import load_dotenv
 import requests
 
 from shop import (get_client_token_info,
-                  add_product_image,
                   create_product,
-                  add_flows_and_get_id
+                  add_flows_and_get_id,
+                  create_flows_field
                   )
 
 
@@ -31,6 +31,13 @@ def add_products(token, menu):
         create_product(token, product)
 
 
+def add_categories(token, flow_id):
+    create_flows_field(token, flow_id, 'Address', 'Pizzeria address', 'string')
+    create_flows_field(token, flow_id, 'Alias', 'Alias for pizzeria', 'string')
+    create_flows_field(token, flow_id, 'Longitude', 'Longitude pizzeria coordinates', 'float')
+    create_flows_field(token, flow_id, 'Latitude', 'Latitude pizzeria coordinates', 'float')
+
+
 if __name__ == '__main__':
     load_dotenv()
     client_id = os.getenv('CLIENT_ID')
@@ -45,5 +52,6 @@ if __name__ == '__main__':
 
     name = 'Pizzeria'
     description = 'Pizzeria with address and coordinates'
-    flow_id = add_flows_and_get_id(token, name, description)
 
+    flow_id = add_flows_and_get_id(token, name, description)
+    add_categories(token, flow_id)

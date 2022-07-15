@@ -112,7 +112,7 @@ def add_flows_and_get_id(token, name, description):
     return flows['data']['id']
 
 
-def create_flows_field(token, flow_id, field_name, field_type):
+def create_flows_field(token, flow_id, field_name, field_description, field_type):
     url = 'https://api.moltin.com/v2/fields'
     headers = {
         'Authorization': f'{token}',
@@ -121,20 +121,11 @@ def create_flows_field(token, flow_id, field_name, field_type):
     json_data = {
         'data': {
             'type': 'field',
-            'name': 'Product Rating',
-            'slug': 'product-rating',
-            'field_type': 'integer',
-            'validation_rules': [
-                {
-                    'type': 'between',
-                    'options': {
-                        'from': 1,
-                        'to': 5,
-                    },
-                },
-            ],
-            'description': 'Average rating as given by our users',
-            'required': False,
+            'name': field_name,
+            'slug': str(uuid4())[-12:],
+            'field_type': field_type,
+            'description': field_description,
+            'required': True,
             'default': 0,
             'enabled': True,
             'order': 1,
