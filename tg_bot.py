@@ -9,10 +9,12 @@ import redis
 from dotenv import load_dotenv
 from telegram.ext import Filters, Updater
 from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
+from yandex_geocoder import Client, exceptions
 
 from keyboard import (get_main_menu,
                       get_description_menu,
-                      get_cart_menu)
+                      get_cart_menu
+                      )
 from shop import (get_client_token_info,
                   get_products,
                   get_product,
@@ -23,6 +25,7 @@ from shop import (get_client_token_info,
                   delete_cart_items,
                   create_customer
                   )
+from utilits import fetch_coordinates
 
 
 logging.basicConfig(
@@ -200,14 +203,14 @@ def handle_cart(context, update, access_token, products):
     elif query.data == 'pay':
         context.bot.send_message(
             chat_id=query.message.chat_id,
-            text='Для оформления заказа введите ваш email'
+            text='Пришлите Ваш адрес текстом или геопозицию'
         )
         context.bot.delete_message(
             chat_id=query.message.chat_id,
             message_id=query.message.message_id
         )
 
-        return 'WAITING_EMAIL'
+        return 'HANDLE_WAITING'
 
     elif query.data == 'menu':
         context.bot.send_message(
@@ -222,25 +225,26 @@ def handle_cart(context, update, access_token, products):
         return 'HANDLE_MENU'
 
 
-def handle_waiting_email(context, update, access_token):
-    print(update.message)
-    username = update.message['chat']['username']
-    email = update.message.text
-    message = f'''
-    Вы ввели email: {email}
+def handle_waiting(context, update, yandex_token):
+    if update.message.text:
+        try:
+            client = Client(yandex_token)
+            lon, lat = client.coordinates(update.message.text)
+            current_position = (str(lon), str(lat))
+        except exceptions.YandexGeocoderException:
+            current_position = None
+            context.bot.send_message(
+                chat_id=update.message.chat_id,
+                text='Не могу распознать этот адрес'
+            )
+    else:
+        current_position = (update.message.location.longitude,update.message.location.latitude)
 
-    В ближайшее время менеджер свяжется с вами для оформления заказа.
-    '''
-    update.message.reply_text(
-        text=dedent(message)
-    )
-
-    create_customer(access_token, username, email)
-
-    return 'START'
+    if current_position:
+        print(current_position)
 
 
-def handle_users_reply(update, context, client_id, client_secret, grant_type):
+def handle_users_reply(update, context, client_id, client_secret, grant_type, yandex_token):
     db = get_database_connection()
     if context.user_data.get('token_timestamp'):
         diff = datetime.now() - context.user_data['token_timestamp']
@@ -274,7 +278,7 @@ def handle_users_reply(update, context, client_id, client_secret, grant_type):
         'HANDLE_MENU': partial(handle_menu, access_token=access_token, products=products),
         'HANDLE_DESCRIPTION': partial(handle_description, access_token=access_token, products=products),
         'HANDLE_CART': partial(handle_cart, access_token=access_token, products=products),
-        'WAITING_EMAIL': partial(handle_waiting_email, access_token=access_token),
+        'HANDLE_WAITING': partial(handle_waiting, yandex_token=yandex_token),
     }
     state_handler = states_functions[user_state]
     try:
@@ -303,8 +307,10 @@ if __name__ == '__main__':
     load_dotenv()
     client_id = os.getenv('CLIENT_ID')
     client_secret = os.getenv('CLIENT_SECRET')
-    grant_type = os.getenv('GRANT_TYPE')
+    # grant_type = os.getenv('GRANT_TYPE')
     tg_token = os.getenv("TELEGRAM_TOKEN")
+    yandex_token = os.getenv('YANDEX_TOKEN')
+    grant_type = 'implicit'
 
     updater = Updater(tg_token)
     dispatcher = updater.dispatcher
@@ -314,18 +320,28 @@ if __name__ == '__main__':
         client_id=client_id,
         client_secret=client_secret,
         grant_type=grant_type,
+        yandex_token=yandex_token
     )))
+
     dispatcher.add_handler(MessageHandler(Filters.text, partial(
         handle_users_reply,
         client_id=client_id,
         client_secret=client_secret,
-        grant_type=grant_type
+        grant_type=grant_type,
+        yandex_token=yandex_token
     )))
+
     dispatcher.add_handler(CommandHandler('start', partial(
         handle_users_reply,
         client_id=client_id,
         client_secret=client_secret,
-        grant_type=grant_type
+        grant_type=grant_type,
+        yandex_token=yandex_token
+    )))
+
+    dispatcher.add_handler(MessageHandler(Filters.location, partial(
+        handle_waiting,
+        yandex_token
     )))
 
     dispatcher.add_error_handler(error)
