@@ -54,9 +54,13 @@ def get_cart_message(cart_id, access_token):
         total_price = item['meta']['display_price']['with_tax']['value']['formatted']
         message += f'''
                 {item_name}
+                
                 {item_description}
-                {item_price} per kg
-                {item_quantity}kg in cart for {total_price}
+                
+                {item_price} руб. за одну пиццу
+                
+                В корзине пиццы: {item_quantity} шт. 
+                на {total_price} руб.
 
                 '''
     message += total_amount
@@ -66,48 +70,60 @@ def get_cart_message(cart_id, access_token):
 
 def start(context, update, products):
     update.message.reply_text(
-        'Please choose:',
+        'Выберите пиццу:',
         reply_markup=get_main_menu(products)
     )
 
     return 'HANDLE_MENU'
 
 
-def handle_menu(context, update, access_token):
+def handle_menu(context, update, access_token, products):
     query = update.callback_query
-    product_id = query.data
-    user = f"user_tg_{query.message.chat_id}"
-    _database.set(
-        user,
-        json.dumps({'product_id': product_id})
-    )
-    context.user_data['product_id'] = product_id
-    product_data = get_product(access_token, product_id)
-    product_name = product_data['name']
-    # product_weight = product_data['weight']['kg']
-    product_price = product_data['meta']['display_price']['with_tax']['formatted']
-    product_description = product_data['description']
 
-    message = f'''
-    {product_name}
-    {product_price}
-    {product_description}
-    '''
-    image_url = get_product_image(access_token, product_data)
+    if 'pag' in query.data:
+        page = query.data.split(', ')[1]
+        context.bot.edit_message_text(
+            text='Выберите пиццу',
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id,
+            reply_markup=get_main_menu(products, int(page))
+        )
 
-    context.bot.send_photo(
-        chat_id=query.message.chat_id,
-        photo=image_url,
-        caption=dedent(message),
-        reply_markup=get_description_menu()
-    )
+        return 'HANDLE_MENU'
 
-    context.bot.delete_message(
-        chat_id=query.message.chat_id,
-        message_id=query.message.message_id
-    )
+    else:
+        product_id = query.data
+        user = f"user_tg_{query.message.chat_id}"
+        _database.set(
+            user,
+            json.dumps({'product_id': product_id})
+        )
+        context.user_data['product_id'] = product_id
+        product_data = get_product(access_token, product_id)
+        product_name = product_data['name']
+        product_price = product_data['meta']['display_price']['with_tax']['formatted']
+        product_description = product_data['description']
 
-    return 'HANDLE_DESCRIPTION'
+        message = f'''
+        {product_name}
+        {product_price}
+        {product_description}
+        '''
+        image_url = get_product_image(access_token, product_data)
+
+        context.bot.send_photo(
+            chat_id=query.message.chat_id,
+            photo=image_url,
+            caption=dedent(message),
+            reply_markup=get_description_menu()
+        )
+
+        context.bot.delete_message(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id
+        )
+
+        return 'HANDLE_DESCRIPTION'
 
 
 def handle_description(context, update, access_token, products):
@@ -155,7 +171,7 @@ def handle_description(context, update, access_token, products):
         product_name = product_data['name']
         context.bot.answer_callback_query(
             callback_query_id=query.id,
-            text=f'Вы добавили в корзину {query.data} кг {product_name}',
+            text=f'Вы добавили в корзину пиццу: {product_name}',
             show_alert=True
         )
         return 'HANDLE_DESCRIPTION'
@@ -255,7 +271,7 @@ def handle_users_reply(update, context, client_id, client_secret, grant_type):
 
     states_functions = {
         'START': partial(start, products=products),
-        'HANDLE_MENU': partial(handle_menu, access_token=access_token),
+        'HANDLE_MENU': partial(handle_menu, access_token=access_token, products=products),
         'HANDLE_DESCRIPTION': partial(handle_description, access_token=access_token, products=products),
         'HANDLE_CART': partial(handle_cart, access_token=access_token, products=products),
         'WAITING_EMAIL': partial(handle_waiting_email, access_token=access_token),
