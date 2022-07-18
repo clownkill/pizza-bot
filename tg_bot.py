@@ -3,6 +3,7 @@ import logging
 import os
 from datetime import datetime
 from functools import partial
+from pprint import pprint
 from textwrap import dedent
 
 import redis
@@ -23,9 +24,11 @@ from shop import (get_client_token_info,
                   get_cart_items,
                   get_cart_total_amount,
                   delete_cart_items,
-                  create_customer
+                  create_customer,
+                  get_pizzerias
                   )
-from utilits import fetch_coordinates
+from utilits import get_nearest_pizzeria
+
 
 
 logging.basicConfig(
@@ -225,12 +228,12 @@ def handle_cart(context, update, access_token, products):
         return 'HANDLE_MENU'
 
 
-def handle_waiting(context, update, yandex_token):
+def handle_waiting(context, update, yandex_token, access_token):
     if update.message.text:
         try:
             client = Client(yandex_token)
             lon, lat = client.coordinates(update.message.text)
-            current_position = (str(lon), str(lat))
+            current_position = (float(lat), float(lon))
         except exceptions.YandexGeocoderException:
             current_position = None
             context.bot.send_message(
@@ -238,10 +241,56 @@ def handle_waiting(context, update, yandex_token):
                 text='Не могу распознать этот адрес'
             )
     else:
-        current_position = (update.message.location.longitude,update.message.location.latitude)
+        current_position = (
+            float(update.message.location.latitude),
+            float(update.message.location.longitude)
+        )
 
     if current_position:
-        print(current_position)
+        flow_slug = 'pizzeria'
+        pizzerias = get_pizzerias(access_token, flow_slug)
+        pizzeria_address, distance = get_nearest_pizzeria(current_position, pizzerias)
+
+        if distance <= 0.5:
+            message_text = f'''
+            Может, заберете пиццу из нашей пиццерии неподалеку?
+            Она всего в {distance * 100} метрах от Вас!
+            Вот её адрес: {pizzeria_address}.
+            
+            А можем и бесплатно оставить, нам не сложно))
+            '''
+            context.bot.send_message(
+                chat_id=update.message.chat_id,
+                text=message_text
+            )
+        elif 0.5 < distance <= 5:
+            message_text = f'''
+            Доставим Вашу пиццу за 100 рублей.
+            Или можете забрать ее по адресу: {pizzeria_address}
+            '''
+            context.bot.send_message(
+                chat_id=update.message.chat_id,
+                text=message_text
+            )
+        elif 5 < distance <= 20:
+            message_text = f'''
+            Доставим Вашу пиццу за 300 рублей.
+            Или можете забрать ее по адресу: {pizzeria_address}
+            '''
+            context.bot.send_message(
+                chat_id=update.message.chat_id,
+                text=message_text
+            )
+        else:
+            message_text = f'''
+            Простите, но так далеко мы пиццу не доставим.
+            Ближайшая пиццерия аж в {distance:.1f} километрах от Вас.
+            Заезжайте к нам в гости: {pizzeria_address}
+            '''
+            context.bot.send_message(
+                chat_id=update.message.chat_id,
+                text=message_text
+            )
 
 
 def handle_users_reply(update, context, client_id, client_secret, grant_type, yandex_token):
@@ -278,7 +327,7 @@ def handle_users_reply(update, context, client_id, client_secret, grant_type, ya
         'HANDLE_MENU': partial(handle_menu, access_token=access_token, products=products),
         'HANDLE_DESCRIPTION': partial(handle_description, access_token=access_token, products=products),
         'HANDLE_CART': partial(handle_cart, access_token=access_token, products=products),
-        'HANDLE_WAITING': partial(handle_waiting, yandex_token=yandex_token),
+        'HANDLE_WAITING': partial(handle_waiting, yandex_token=yandex_token, access_token=access_token),
     }
     state_handler = states_functions[user_state]
     try:
@@ -341,7 +390,10 @@ if __name__ == '__main__':
 
     dispatcher.add_handler(MessageHandler(Filters.location, partial(
         handle_waiting,
-        yandex_token
+        client_id=client_id,
+        client_secret=client_secret,
+        grant_type=grant_type,
+        yandex_token=yandex_token
     )))
 
     dispatcher.add_error_handler(error)

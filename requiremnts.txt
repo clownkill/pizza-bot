@@ -3,3 +3,4 @@ python-dotenv==0.20.0
 python-telegram-bot==13.11
 redis==3.2.1
 yandex-geocoder==2.0.0
+geopy==2.2.0

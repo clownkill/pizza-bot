@@ -325,3 +325,27 @@ def add_categories(token, flow_id):
 def add_pizzerias(token, flow_slug, pizzerias):
     for pizzeria in pizzerias:
         add_pizzeria_info(token, flow_slug, pizzeria)
+
+
+def get_pizzerias(token, flow_slug):
+    url = f'https://api.moltin.com/v2/flows/{flow_slug}/entries'
+
+    headers = {
+        'Authorization': f'Bearer {token}',
+    }
+
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+
+    pizzerias = response.json()
+
+    pizzerias_location = {}
+
+    for pizzeria in pizzerias['data']:
+        address = pizzeria['address']
+        lat = pizzeria['latitude']
+        lon = pizzeria['longitude']
+
+        pizzerias_location[address] = (lat, lon)
+
+    return pizzerias_location
