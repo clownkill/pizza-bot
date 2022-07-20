@@ -14,7 +14,8 @@ from yandex_geocoder import Client, exceptions
 
 from keyboard import (get_main_menu,
                       get_description_menu,
-                      get_cart_menu
+                      get_cart_menu,
+                      get_delivery_menu,
                       )
 from shop import (get_client_token_info,
                   get_products,
@@ -260,6 +261,7 @@ def handle_waiting(context, update, yandex_token, access_token):
         if distance <= 0.5:
             message_text = f'''
             Может, заберете пиццу из нашей пиццерии неподалеку?
+            
             Она всего в {distance * 100} метрах от Вас!
             Вот её адрес: {pizzeria_address}.
             
@@ -267,35 +269,43 @@ def handle_waiting(context, update, yandex_token, access_token):
             '''
             context.bot.send_message(
                 chat_id=update.message.chat_id,
-                text=message_text
+                text=dedent(message_text),
+                reply_markup=get_delivery_menu(distance)
             )
         elif 0.5 < distance <= 5:
             message_text = f'''
             Доставим Вашу пиццу за 100 рублей.
+            
             Или можете забрать ее по адресу: {pizzeria_address}
             '''
             context.bot.send_message(
                 chat_id=update.message.chat_id,
-                text=message_text
+                text=dedent(message_text),
+                reply_markup=get_delivery_menu(distance)
             )
         elif 5 < distance <= 20:
             message_text = f'''
             Доставим Вашу пиццу за 300 рублей.
+            
             Или можете забрать ее по адресу: {pizzeria_address}
             '''
             context.bot.send_message(
                 chat_id=update.message.chat_id,
-                text=message_text
+                text=dedent(message_text),
+                reply_markup=get_delivery_menu(distance)
             )
-        else:
+        elif distance > 20:
             message_text = f'''
             Простите, но так далеко мы пиццу не доставим.
+            
             Ближайшая пиццерия аж в {distance:.1f} километрах от Вас.
+            
             Заезжайте к нам в гости: {pizzeria_address}
             '''
             context.bot.send_message(
                 chat_id=update.message.chat_id,
-                text=message_text
+                text=dedent(message_text),
+                reply_markup=get_delivery_menu(distance)
             )
 
 

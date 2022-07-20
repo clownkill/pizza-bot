@@ -58,3 +58,18 @@ def get_cart_menu(cart_items):
     inline_kb_markup = InlineKeyboardMarkup(inline_keyboard)
 
     return inline_kb_markup
+
+
+def get_delivery_menu(distance):
+    if distance > 20:
+        inline_keyboard = [
+            [InlineKeyboardButton('Самовывоз', callback_data='pickup')],
+        ]
+    else:
+        inline_keyboard = [
+            [InlineKeyboardButton('Доставка', callback_data='delivery')],
+            [InlineKeyboardButton('Самовывоз', callback_data='pickup')],
+        ]
+    inline_kb_markup = InlineKeyboardMarkup(inline_keyboard)
+
+    return inline_kb_markup
