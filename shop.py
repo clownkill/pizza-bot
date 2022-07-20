@@ -1,7 +1,9 @@
 import json
+import os
 from pprint import pprint
 from uuid import uuid4
 
+from dotenv import load_dotenv
 import requests
 
 
@@ -86,7 +88,7 @@ def create_product(token, product):
     add_product_image(token, stored_product_id, product_image_id)
 
 
-def add_flows_and_get_id_slug(token, name, description):
+def add_flows_and_get_id(token, name, description):
     url = 'https://api.moltin.com/v2/flows'
     slug = name.lower()
     headers = {
@@ -107,7 +109,7 @@ def add_flows_and_get_id_slug(token, name, description):
 
     flows = response.json()
 
-    return flows['data']['id'], slug
+    return flows['data']['id']
 
 
 def create_flows_field(token, flow_id, field_name, field_description, field_type):
@@ -315,9 +317,9 @@ def add_products(token, menu):
         create_product(token, product)
 
 
-def add_categories(token, flow_id):
-    create_flows_field(token, flow_id, 'Address', 'Pizzeria address', 'string')
-    create_flows_field(token, flow_id, 'Alias', 'Alias for pizzeria', 'string')
+def add_model_fields(token, flow_id):
+    # create_flows_field(token, flow_id, 'Address', 'Pizzeria address', 'string')
+    # create_flows_field(token, flow_id, 'Alias', 'Alias for pizzeria', 'string')
     create_flows_field(token, flow_id, 'Longitude', 'Longitude pizzeria coordinates', 'float')
     create_flows_field(token, flow_id, 'Latitude', 'Latitude pizzeria coordinates', 'float')
 
@@ -349,3 +351,15 @@ def get_pizzerias(token, flow_slug):
         pizzerias_location[address] = (lat, lon)
 
     return pizzerias_location
+
+
+if __name__ == '__main__':
+    load_dotenv()
+    client_id = os.getenv('CLIENT_ID')
+    client_secret = os.getenv('CLIENT_SECRET')
+    grant_type = os.getenv('GRANT_TYPE')
+
+    token = get_client_token_info(client_id, client_secret, grant_type)['access_token']
+
+    flow_id = add_flows_and_get_id(token, 'Customer_Addresses', 'Customer coordinates')
+    add_model_fields(token, flow_id)
