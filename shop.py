@@ -163,7 +163,7 @@ def add_pizzeria_info(token, flow_slug, pizzeria):
     response.raise_for_status()
 
 
-def add_customer_address(token, flow_slug, current_position):
+def add_customer_address(token, flow_slug, current_position, card_id):
     latitude, longitude = current_position
     url = f'https://api.moltin.com/v2/flows/{flow_slug}/entries'
     headers = {
@@ -176,6 +176,7 @@ def add_customer_address(token, flow_slug, current_position):
                 "type": "entry",
                 "longitude": longitude,
                 "latitude": latitude,
+                'card-id': card_id,
             },
     }
 
@@ -342,6 +343,7 @@ def add_model_fields(token, flow_id):
     # create_flows_field(token, flow_id, 'Alias', 'Alias for pizzeria', 'string')
     create_flows_field(token, flow_id, 'Longitude', 'Longitude pizzeria coordinates', 'float')
     create_flows_field(token, flow_id, 'Latitude', 'Latitude pizzeria coordinates', 'float')
+    create_flows_field(token, flow_id, 'Card-id', 'ID', 'integer')
 
 
 def add_pizzerias(token, flow_slug, pizzerias):
@@ -381,5 +383,5 @@ if __name__ == '__main__':
 
     token = get_client_token_info(client_id, client_secret, grant_type)['access_token']
 
-    flow_id = add_flows_and_get_id(token, 'Customer_Addresses', 'Customer coordinates')
+    flow_id = add_flows_and_get_id(token, 'Customer-Addresses', 'Customer coordinates')
     add_model_fields(token, flow_id)

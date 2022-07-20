@@ -1,3 +1,6 @@
+import json
+from pprint import pprint
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 
@@ -60,16 +63,12 @@ def get_cart_menu(cart_items):
     return inline_kb_markup
 
 
-def get_delivery_menu(distance):
-    if distance > 20:
-        inline_keyboard = [
-            [InlineKeyboardButton('Самовывоз', callback_data='pickup')],
-        ]
-    else:
-        inline_keyboard = [
-            [InlineKeyboardButton('Доставка', callback_data='delivery')],
-            [InlineKeyboardButton('Самовывоз', callback_data='pickup')],
-        ]
+def get_delivery_menu(supplier, current_position):
+    data = json.dumps([supplier, current_position])
+    inline_keyboard = [
+        [InlineKeyboardButton('Доставка', callback_data=f'{data}')],
+        [InlineKeyboardButton('Самовывоз', callback_data='pickup')],
+    ]
     inline_kb_markup = InlineKeyboardMarkup(inline_keyboard)
 
     return inline_kb_markup
