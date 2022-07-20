@@ -99,6 +99,23 @@ def handle_menu(context, update, access_token, products):
 
         return 'HANDLE_MENU'
 
+    elif query.data == 'cart':
+        cart_id = query.message['chat']['id']
+        cart_items = get_cart_items(access_token, cart_id)
+        message = get_cart_message(cart_id, access_token)
+
+        context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=dedent(message),
+            reply_markup=get_cart_menu(cart_items)
+        )
+        context.bot.delete_message(
+            chat_id=query.message.chat_id,
+            message_id=query.message.message_id
+        )
+
+        return 'HANDLE_CART'
+
     else:
         product_id = query.data
         user = f"user_tg_{query.message.chat_id}"
@@ -258,7 +275,7 @@ def handle_waiting(context, update, yandex_token, access_token):
         message_text = f'''
         Может, заберете пиццу из нашей пиццерии неподалеку?
         
-        Она всего в {distance * 100} метрах от Вас!
+        Она всего в {(distance * 100):.2f} метрах от Вас!
         Вот её адрес: {pizzeria_address}.
         
         А можем и бесплатно оставить, нам не сложно))
@@ -282,7 +299,7 @@ def handle_waiting(context, update, yandex_token, access_token):
         message_text = f'''
         Простите, но так далеко мы пиццу не доставим.
         
-        Ближайшая пиццерия аж в {distance:.1f} километрах от Вас.
+        Ближайшая пиццерия аж в {distance:.2f} километрах от Вас.
         
         Заезжайте к нам в гости: {pizzeria_address}
         '''
@@ -303,7 +320,7 @@ def handle_delivery(context, update):
 
     if query.data == 'pickup':
         context.bot.send_message(
-            chat_id=update.message.chat_id,
+            chat_id=query.message.chat.id,
             text='Вы выбрали самовывоз'
         )
     else:

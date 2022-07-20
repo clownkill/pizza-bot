@@ -35,6 +35,8 @@ def get_main_menu(products, page=0):
         inline_keyboard.append([InlineKeyboardButton('Назад', callback_data=f'pag, {page - 1}'),
                          InlineKeyboardButton('Вперед', callback_data=f'pag, {page + 1}')])
 
+    inline_keyboard.append([InlineKeyboardButton('Корзина', callback_data='cart')])
+
     inline_kb_markup = InlineKeyboardMarkup(inline_keyboard)
 
     return inline_kb_markup

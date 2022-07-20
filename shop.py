@@ -151,11 +151,12 @@ def add_pizzeria_info(token, flow_slug, pizzeria):
     json_data = {
         "data":
             {
-                "type": "entry",
-                "address": pizzeria['address']['full'],
-                "alias": pizzeria['alias'],
-                "longitude": float(pizzeria['coordinates']['lon']),
-                "latitude": float(pizzeria['coordinates']['lat']),
+                'type': "entry",
+                'address': pizzeria['address']['full'],
+                'alias': pizzeria['alias'],
+                'longitude': float(pizzeria['coordinates']['lon']),
+                'latitude': float(pizzeria['coordinates']['lat']),
+                'courier_id': 111111111
             },
     }
 
