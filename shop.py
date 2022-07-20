@@ -163,6 +163,26 @@ def add_pizzeria_info(token, flow_slug, pizzeria):
     response.raise_for_status()
 
 
+def add_customer_address(token, flow_slug, current_position):
+    latitude, longitude = current_position
+    url = f'https://api.moltin.com/v2/flows/{flow_slug}/entries'
+    headers = {
+        'Authorization': f'{token}',
+        'Content-Type': 'application/json',
+    }
+    json_data = {
+        "data":
+            {
+                "type": "entry",
+                "longitude": longitude,
+                "latitude": latitude,
+            },
+    }
+
+    response = requests.post(url, headers=headers, json=json_data)
+    response.raise_for_status()
+
+
 def get_products(token):
     url = 'https://api.moltin.com/v2/products/'
     headers = {

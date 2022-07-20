@@ -25,7 +25,8 @@ from shop import (get_client_token_info,
                   get_cart_total_amount,
                   delete_cart_items,
                   create_customer,
-                  get_pizzerias
+                  get_pizzerias,
+                  add_customer_address
                   )
 from utilits import get_nearest_pizzeria
 
@@ -250,6 +251,11 @@ def handle_waiting(context, update, yandex_token, access_token):
         flow_slug = 'pizzeria'
         pizzerias = get_pizzerias(access_token, flow_slug)
         pizzeria_address, distance = get_nearest_pizzeria(current_position, pizzerias)
+        add_customer_address(
+            access_token,
+            flow_slug='customer_addresses',
+            current_position=current_position
+        )
 
         if distance <= 0.5:
             message_text = f'''
@@ -356,10 +362,9 @@ if __name__ == '__main__':
     load_dotenv()
     client_id = os.getenv('CLIENT_ID')
     client_secret = os.getenv('CLIENT_SECRET')
-    # grant_type = os.getenv('GRANT_TYPE')
+    grant_type = os.getenv('GRANT_TYPE')
     tg_token = os.getenv("TELEGRAM_TOKEN")
     yandex_token = os.getenv('YANDEX_TOKEN')
-    grant_type = 'implicit'
 
     updater = Updater(tg_token)
     dispatcher = updater.dispatcher
