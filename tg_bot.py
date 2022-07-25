@@ -8,8 +8,14 @@ from textwrap import dedent
 
 import redis
 from dotenv import load_dotenv
-from telegram.ext import Filters, Updater
-from telegram.ext import CallbackQueryHandler, CommandHandler, MessageHandler
+from telegram.ext import (Filters,
+                          Updater,
+                          Job,
+                          JobQueue,
+                          CallbackQueryHandler,
+                          CommandHandler,
+                          MessageHandler
+                          )
 from yandex_geocoder import Client, exceptions
 
 from keyboard import (get_main_menu,
@@ -305,14 +311,28 @@ def handle_waiting(context, update, yandex_token, access_token):
         '''
         reply_markup = None
 
-    if reply_markup:
-        context.bot.send_message(
-            chat_id=update.message.chat_id,
-            text=dedent(message_text),
-            reply_markup=reply_markup
-        )
+    context.bot.send_message(
+        chat_id=update.message.chat_id,
+        text=dedent(message_text),
+        reply_markup=reply_markup
+    )
 
-        return 'HANDLE_DELIVERY'
+    return 'HANDLE_DELIVERY'
+
+
+def pizza_not_delivered(context):
+    message_text = '''
+    Приятного аппетита! *место для рекламы*
+    
+    Курьер с пиццей очень спешит к Вам.
+    Но увы не успевает доставить ее вовремя.
+    В связи с этим можете забрать нашу пиццу совершенно бесплатно.))
+    
+    '''
+    context.bot.send_message(
+        chat_id=context.job.context,
+        text=dedent(message_text)
+    )
 
 
 def handle_delivery(context, update):
@@ -334,6 +354,9 @@ def handle_delivery(context, update):
             longitude=position[1],
             latitude=position[0]
         )
+
+        context.job_queue.run_once(pizza_not_delivered, 3600, context=query.message.chat.id)
+
 
 def handle_users_reply(update, context, client_id, client_secret, grant_type, yandex_token):
     db = get_database_connection()
@@ -400,18 +423,19 @@ if __name__ == '__main__':
     client_id = os.getenv('CLIENT_ID')
     client_secret = os.getenv('CLIENT_SECRET')
     grant_type = os.getenv('GRANT_TYPE')
-    tg_token = os.getenv("TELEGRAM_TOKEN")
+    tg_token = os.getenv('TELEGRAM_TOKEN')
     yandex_token = os.getenv('YANDEX_TOKEN')
 
     updater = Updater(tg_token)
     dispatcher = updater.dispatcher
+    jq = updater.job_queue
 
     dispatcher.add_handler(CallbackQueryHandler(partial(
         handle_users_reply,
         client_id=client_id,
         client_secret=client_secret,
         grant_type=grant_type,
-        yandex_token=yandex_token
+        yandex_token=yandex_token,
     )))
 
     dispatcher.add_handler(MessageHandler(Filters.text, partial(
@@ -419,7 +443,7 @@ if __name__ == '__main__':
         client_id=client_id,
         client_secret=client_secret,
         grant_type=grant_type,
-        yandex_token=yandex_token
+        yandex_token=yandex_token,
     )))
 
     dispatcher.add_handler(CommandHandler('start', partial(
@@ -427,7 +451,7 @@ if __name__ == '__main__':
         client_id=client_id,
         client_secret=client_secret,
         grant_type=grant_type,
-        yandex_token=yandex_token
+        yandex_token=yandex_token,
     )))
 
     dispatcher.add_handler(MessageHandler(Filters.location, partial(
@@ -441,3 +465,4 @@ if __name__ == '__main__':
     dispatcher.add_error_handler(error)
 
     updater.start_polling()
+    updater.idle()
