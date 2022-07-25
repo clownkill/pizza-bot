@@ -8,13 +8,13 @@ from textwrap import dedent
 
 import redis
 from dotenv import load_dotenv
+from telegram import LabeledPrice
 from telegram.ext import (Filters,
                           Updater,
-                          Job,
-                          JobQueue,
                           CallbackQueryHandler,
                           CommandHandler,
-                          MessageHandler
+                          MessageHandler,
+                          PreCheckoutQueryHandler,
                           )
 from yandex_geocoder import Client, exceptions
 
@@ -210,6 +210,7 @@ def handle_description(context, update, access_token, products):
 
 def handle_cart(context, update, access_token, products):
     query = update.callback_query
+    pay_with_price = query.data.split(', ')
     cart_id = query.message['chat']['id']
     if query.data.startswith('del'):
         item_id = query.data.split(' ')[-1]
@@ -228,15 +229,17 @@ def handle_cart(context, update, access_token, products):
 
         return 'HANDLE_CART'
 
-    elif query.data == 'pay':
-        context.bot.send_message(
-            chat_id=query.message.chat_id,
-            text='Пришлите Ваш адрес текстом или Вашу геопозицию'
-        )
-        context.bot.delete_message(
-            chat_id=query.message.chat_id,
-            message_id=query.message.message_id
-        )
+    elif pay_with_price[0] == 'pay':
+        price = int(pay_with_price[1])
+        start_without_shipping(context, update, price)
+        # context.bot.send_message(
+        #     chat_id=query.message.chat_id,
+        #     text='Пришлите Ваш адрес текстом или Вашу геопозицию'
+        # )
+        # context.bot.delete_message(
+        #     chat_id=query.message.chat_id,
+        #     message_id=query.message.message_id
+        # )
 
         return 'HANDLE_WAITING'
 
@@ -355,7 +358,54 @@ def handle_delivery(context, update):
             latitude=position[0]
         )
 
-        context.job_queue.run_once(pizza_not_delivered, 3600, context=query.message.chat.id)
+        context.job_queue.run_once(pizza_not_delivered, 10, context=query.message.chat.id)
+
+    return 'END'
+
+
+def start_without_shipping(context, update, price):
+    chat_id = update.callback_query.message.chat.id
+    payment_token = os.getenv('PAY_TOKEN')
+    title = f'Order №{chat_id}'
+    description = 'Сразу же после оплаты Ваша пицца отправится в печь'
+    payload = 'Custom_order'
+    currency = 'RUB'
+    prices = [LabeledPrice('Test', price * 100)]
+    context.bot.sendInvoice(
+        chat_id,
+        title,
+        description,
+        payload,
+        payment_token,
+        currency,
+        prices
+    )
+
+
+def precheckout_callback(update, context):
+    query = update.pre_checkout_query
+    if query.invoice_payload != f"Custom_order":
+        context.bot.answer_pre_checkout_query(
+            pre_checkout_query_id=query.id,
+            ok=False,
+            error_message="Что то пошло не так"
+        )
+    else:
+        context.bot.answer_pre_checkout_query(
+            pre_checkout_query_id=query.id,
+            ok=True
+        )
+
+
+def successful_payment_callback(update, context):
+    context.bot.send_message(
+        chat_id=update.message.chat_id,
+        text='Пришлите Ваш адрес текстом или Вашу геопозицию'
+    )
+    context.bot.delete_message(
+        chat_id=update.message.chat_id,
+        message_id=update.message.message_id
+    )
 
 
 def handle_users_reply(update, context, client_id, client_secret, grant_type, yandex_token):
@@ -425,6 +475,7 @@ if __name__ == '__main__':
     grant_type = os.getenv('GRANT_TYPE')
     tg_token = os.getenv('TELEGRAM_TOKEN')
     yandex_token = os.getenv('YANDEX_TOKEN')
+    payment_token = os.getenv('PAYMENT_TOKEN')
 
     updater = Updater(tg_token)
     dispatcher = updater.dispatcher
@@ -437,7 +488,6 @@ if __name__ == '__main__':
         grant_type=grant_type,
         yandex_token=yandex_token,
     )))
-
     dispatcher.add_handler(MessageHandler(Filters.text, partial(
         handle_users_reply,
         client_id=client_id,
@@ -445,7 +495,6 @@ if __name__ == '__main__':
         grant_type=grant_type,
         yandex_token=yandex_token,
     )))
-
     dispatcher.add_handler(CommandHandler('start', partial(
         handle_users_reply,
         client_id=client_id,
@@ -453,7 +502,6 @@ if __name__ == '__main__':
         grant_type=grant_type,
         yandex_token=yandex_token,
     )))
-
     dispatcher.add_handler(MessageHandler(Filters.location, partial(
         handle_users_reply,
         client_id=client_id,
@@ -461,6 +509,8 @@ if __name__ == '__main__':
         grant_type=grant_type,
         yandex_token=yandex_token
     )))
+    dispatcher.add_handler(PreCheckoutQueryHandler(precheckout_callback))
+    dispatcher.add_handler(MessageHandler(Filters.successful_payment, successful_payment_callback))
 
     dispatcher.add_error_handler(error)
 

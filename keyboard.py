@@ -54,11 +54,14 @@ def get_description_menu():
 
 
 def get_cart_menu(cart_items):
+    total_amount = sum(
+        [item['meta']['display_price']['with_tax']['value']['amount'] for item in cart_items]
+    ) // 100
     inline_keyboard = [
         [InlineKeyboardButton(f"Убрать из корзины {item['name']}", callback_data=f"del {item['id']}")]
         for item in cart_items
     ]
-    inline_keyboard.append([InlineKeyboardButton('Оплатить', callback_data='pay')])
+    inline_keyboard.append([InlineKeyboardButton('Оплатить', callback_data=f'pay, {total_amount}')])
     inline_keyboard.append([InlineKeyboardButton('В меню', callback_data='menu')])
     inline_kb_markup = InlineKeyboardMarkup(inline_keyboard)
 
