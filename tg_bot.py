@@ -232,14 +232,6 @@ def handle_cart(context, update, access_token, products):
     elif pay_with_price[0] == 'pay':
         price = int(pay_with_price[1])
         start_without_shipping(context, update, price)
-        # context.bot.send_message(
-        #     chat_id=query.message.chat_id,
-        #     text='Пришлите Ваш адрес текстом или Вашу геопозицию'
-        # )
-        # context.bot.delete_message(
-        #     chat_id=query.message.chat_id,
-        #     message_id=query.message.message_id
-        # )
 
         return 'HANDLE_WAITING'
 
@@ -398,6 +390,7 @@ def precheckout_callback(update, context):
 
 
 def successful_payment_callback(update, context):
+
     context.bot.send_message(
         chat_id=update.message.chat_id,
         text='Пришлите Ваш адрес текстом или Вашу геопозицию'
