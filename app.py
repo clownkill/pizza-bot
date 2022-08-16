@@ -17,9 +17,7 @@ def verify():
     if request.args.get("hub.mode") == "subscribe" and request.args.get(
         "hub.challenge"
     ):
-        if not (
-            request.args.get("hub.verify_token") == os.getenv("VERIFY_TOKEN")
-        ):
+        if not (request.args.get("hub.verify_token") == os.getenv("VERIFY_TOKEN")):
             return "Verification token mismatch", 403
         return request.args["hub.challenge"], 200
 
@@ -42,7 +40,8 @@ def webhook():
                     recipient_id = messaging_event["recipient"]["id"]
                     message_text = messaging_event["message"]["text"]
 
-                    send_message(sender_id, "roger that!")
+                    # send_message(sender_id, message_text)
+                    send_menu(sender_id)
 
                 if messaging_event.get("delivery"):
                     pass
@@ -69,15 +68,113 @@ def send_message(recipient_id, message_text):
     data = json.dumps(
         {"recipient": {"id": recipient_id}, "message": {"text": message_text}}
     )
-    r = requests.post(
+    response = requests.post(
         "https://graph.facebook.com/v2.6/me/messages",
         params=params,
         headers=headers,
         data=data,
     )
-    if r.status_code != 200:
-        log(r.status_code)
-        log(r.text)
+    if response.status_code != 200:
+        log(response.status_code)
+        log(response.text)
+
+
+def send_menu(recipient_id):
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    params = {
+        "access_token": os.getenv("PAGE_ACCESS_TOKEN"),
+    }
+
+    json_data = {
+        "recipient": {
+            "id": recipient_id,
+        },
+        "message": {
+            "attachment": {
+                "type": "template",
+                "payload": {
+                    "template_type": "generic",
+                    "elements": [
+                        {
+                            "title": "Заголовок",
+                            "image_url": "https://content2.onliner.by/catalog/device/main/5f936e81c336aad5304b8813239f80a4.jpeg",
+                            "subtitle": "Описание",
+                            "default_action": {
+                                "type": "web_url",
+                                "url": "https://catalog.onliner.by/mobile/honor/honorx86128bo",
+                                "messenger_extensions": False,
+                                "webview_height_ratio": "tall",
+                            },
+                            "buttons": [
+                                {
+                                    "type": "web_url",
+                                    "url": "https://catalog.onliner.by",
+                                    "title": "Здесь будет кнопка",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            },
+        },
+    }
+
+    response = requests.post(
+        "https://graph.facebook.com/v2.6/me/messages",
+        params=params,
+        headers=headers,
+        json=json_data,
+    )
+
+    if response.status_code != 200:
+        log(response.status_code)
+        log(response.text)
+
+
+def send_keyboard(recipient_id):
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    params = {
+        "access_token": os.getenv("PAGE_ACCESS_TOKEN"),
+    }
+
+    json_data = {
+        "recipient": {
+            "id": recipient_id,
+        },
+        "message": {
+            "attachment": {
+                "type": "template",
+                "payload": {
+                    "template_type": "button",
+                    "text": "Try the postback button!",
+                    "buttons": [
+                        {
+                            "type": "postback",
+                            "title": "Postback Button",
+                            "payload": "DEVELOPER_DEFINED_PAYLOAD",
+                        },
+                    ],
+                },
+            },
+        },
+    }
+
+    response = requests.post(
+        "https://graph.facebook.com/v2.6/me/messages",
+        params=params,
+        headers=headers,
+        json=json_data,
+    )
+
+    if response.status_code != 200:
+        log(response.status_code)
+        log(response.text)
 
 
 def log(msg, *args, **kwargs):
@@ -85,7 +182,7 @@ def log(msg, *args, **kwargs):
         if type(msg) is dict:
             msg = json.dumps(msg)
         else:
-            msg = msg.format(*args, **kwargs)
+            msg = msg
         print("{}: {}".format(datetime.now(), msg))
     except UnicodeEncodeError:
         pass
