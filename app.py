@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from shop import (
     get_client_token_info,
     get_products,
+    get_products_by_category,
     get_product,
     get_product_image,
 )
@@ -42,7 +43,6 @@ def webhook():
     access_token = get_client_token_info(client_id,
                                         client_secret,
                                         grant_type)['access_token']
-    products = get_products(access_token)[:5]
 
     if data["object"] == "page":
 
@@ -56,7 +56,7 @@ def webhook():
                     message_text = messaging_event["message"]["text"]
 
                     # send_message(sender_id, message_text)
-                    send_menu(sender_id, products, access_token)
+                    send_menu(sender_id, access_token)
 
                 if messaging_event.get("delivery"):
                     pass
@@ -94,7 +94,8 @@ def send_message(recipient_id, message_text):
         log(response.text)
 
 
-def send_menu(recipient_id, products, access_token):
+def send_menu(recipient_id, access_token):
+    products = get_products_by_category(access_token)
     headers = {
         "Content-Type": "application/json",
     }

@@ -203,6 +203,31 @@ def get_products(token):
     return products
 
 
+def get_products_by_category(token, slug='basic'):
+    categories = get_categories(token)
+    category_id = categories[slug]
+    url = "https://api.moltin.com/v2/products"
+
+    headers = {
+        'Authorization': f'Bearer {token}',
+    }
+
+    params = {
+        'filter': f'eq(category.id,{category_id})',
+    }
+
+    response = requests.get(
+        url,
+        headers=headers,
+        params=params
+    )
+    response.raise_for_status()
+
+    products = response.json()['data']
+    
+    return products
+
+
 def get_product(token, product_id):
     url = f'https://api.moltin.com/v2/products/{product_id}'
     headers = {
@@ -376,6 +401,28 @@ def get_pizzerias(token, flow_slug):
     return pizzerias_location
 
 
+def get_categories(token):
+    url = "https://api.moltin.com/v2/categories"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+    }
+
+    response = requests.get(
+        url,
+        headers=headers,
+    )
+    response.raise_for_status()
+
+    categories = {}
+    for category in response.json()['data']:
+        slug = category["slug"]
+        id = category["id"]
+        categories[slug] = id
+
+    return categories
+
+
 if __name__ == '__main__':
     load_dotenv()
     client_id = os.getenv('CLIENT_ID')
@@ -384,5 +431,4 @@ if __name__ == '__main__':
 
     token = get_client_token_info(client_id, client_secret, grant_type)['access_token']
 
-    flow_id = add_flows_and_get_id(token, 'Customer-Addresses', 'Customer coordinates')
-    add_model_fields(token, flow_id)
+    get_products_by_category(token)
