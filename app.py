@@ -1,4 +1,5 @@
 import os
+from pprint import pprint
 import sys
 import json
 from datetime import datetime
@@ -7,7 +8,15 @@ import requests
 from flask import Flask, request
 from dotenv import load_dotenv
 
+from shop import (
+    get_client_token_info,
+    get_products,
+)
+
 load_dotenv()
+client_id = os.getenv("CLIENT_ID")
+client_secret = os.getenv("CLIENT_SECRET")
+grant_type = os.getenv("GRANT_TYPE")
 
 app = Flask(__name__)
 
@@ -28,6 +37,10 @@ def verify():
 def webhook():
     data = request.get_json()
     log(data)
+    access_token = get_client_token_info(client_id,
+                                        client_secret,
+                                        grant_type)['access_token']
+    products = get_products(access_token)[:5]
 
     if data["object"] == "page":
 
@@ -41,7 +54,7 @@ def webhook():
                     message_text = messaging_event["message"]["text"]
 
                     # send_message(sender_id, message_text)
-                    send_menu(sender_id)
+                    send_menu(sender_id, products)
 
                 if messaging_event.get("delivery"):
                     pass
@@ -79,7 +92,7 @@ def send_message(recipient_id, message_text):
         log(response.text)
 
 
-def send_menu(recipient_id):
+def send_menu(recipient_id, products):
     headers = {
         "Content-Type": "application/json",
     }
@@ -87,6 +100,35 @@ def send_menu(recipient_id):
     params = {
         "access_token": os.getenv("PAGE_ACCESS_TOKEN"),
     }
+
+    elements = []
+
+    for product in products:
+        name = product['name']
+        price = int(product['price'][0]['amount'] / 100)
+        description = product['description']
+        title = f"{name} ({price} р)"
+
+        elements.append(
+            {
+                "title": title,
+                "image_url": "",
+                "subtitle": description,
+                "default_action": {
+                    "type": "web_url",
+                    "url": "https://catalog.onliner.by/mobile/honor/honorx86128bo",
+                    "messenger_extensions": False,
+                    "webview_height_ratio": "tall",
+                },
+                "buttons": [
+                    {
+                        "type": "web_url",
+                        "url": "https://catalog.onliner.by",
+                        "title": "Здесь будет кнопка",
+                    },
+                ],
+            },
+        )
 
     json_data = {
         "recipient": {
@@ -97,26 +139,7 @@ def send_menu(recipient_id):
                 "type": "template",
                 "payload": {
                     "template_type": "generic",
-                    "elements": [
-                        {
-                            "title": "Заголовок",
-                            "image_url": "https://content2.onliner.by/catalog/device/main/5f936e81c336aad5304b8813239f80a4.jpeg",
-                            "subtitle": "Описание",
-                            "default_action": {
-                                "type": "web_url",
-                                "url": "https://catalog.onliner.by/mobile/honor/honorx86128bo",
-                                "messenger_extensions": False,
-                                "webview_height_ratio": "tall",
-                            },
-                            "buttons": [
-                                {
-                                    "type": "web_url",
-                                    "url": "https://catalog.onliner.by",
-                                    "title": "Здесь будет кнопка",
-                                },
-                            ],
-                        },
-                    ],
+                    "elements": elements,
                 },
             },
         },
