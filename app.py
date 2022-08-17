@@ -103,7 +103,36 @@ def send_menu(recipient_id, products, access_token):
         "access_token": os.getenv("PAGE_ACCESS_TOKEN"),
     }
 
-    elements = []
+    elements = [
+        {
+            "title": "Меню",
+            "image_url": "https://d1csarkz8obe9u.cloudfront.net/posterpreviews/pizza-logo-template-design-183c12cfbe00ef109c299d864f364e58_screen.jpg?ts=1635756978",
+            "subtitle": "Здесь вы можете выбрать один из вариантов",
+            "default_action": {
+                "type": "web_url",
+                "url": "https://catalog.onliner.by/mobile/honor/honorx86128bo",
+                "messenger_extensions": False,
+                "webview_height_ratio": "tall",
+            },
+            "buttons": [
+                {
+                    "type": "web_url",
+                    "url": "https://catalog.onliner.by",
+                    "title": "Корзина",
+                },
+                {
+                    "type": "web_url",
+                    "url": "https://catalog.onliner.by",
+                    "title": "Акции",
+                },
+                {
+                    "type": "web_url",
+                    "url": "https://catalog.onliner.by",
+                    "title": "Сделать заказ",
+                },
+            ],
+        },
+    ]
 
     for product in products:
         name = product["name"]
