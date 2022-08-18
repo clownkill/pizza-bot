@@ -250,7 +250,7 @@ def get_product_image(token, product_data):
     return image_url
 
 
-def add_to_cart(token, product_id, cart_id, quantity):
+def add_to_cart(token, product_id, cart_id, quantity=1):
     url = f"https://api.moltin.com/v2/carts/{cart_id}/items"
     headers = {
         "Authorization": f"Bearer {token}",
@@ -413,5 +413,3 @@ if __name__ == "__main__":
     grant_type = os.getenv("GRANT_TYPE")
 
     token = get_client_token_info(client_id, client_secret, grant_type)["access_token"]
-
-    get_products_by_category(token)

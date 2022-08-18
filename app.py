@@ -1,6 +1,7 @@
 import json
 import os
 import logging
+from datetime import datetime
 from functools import partial
 import pprint
 
@@ -11,6 +12,7 @@ from dotenv import load_dotenv
 
 from shop import (
     add_to_cart,
+    delete_cart_items,
     get_cart_items,
     get_cart_total_amount,
     get_client_token_info,
@@ -55,9 +57,6 @@ def webhook():
     client_id = os.getenv("CLIENT_ID")
     client_secret = os.getenv("CLIENT_SECRET")
     grant_type = os.getenv("GRANT_TYPE")
-    access_token = get_client_token_info(client_id, client_secret, grant_type)[
-        "access_token"
-    ]
 
     data = request.get_json()
     if data["object"] == "page":
@@ -69,7 +68,9 @@ def webhook():
                 elif messaging_event.get("postback"):
                     sender_id = messaging_event["sender"]["id"]
                     message_text = messaging_event["postback"]["payload"]
-                handle_users_reply(sender_id, message_text, access_token)
+                handle_users_reply(
+                    sender_id, message_text, client_id, client_secret, grant_type
+                )
 
     return "ok", 200
 
@@ -228,6 +229,24 @@ def get_cart_menu_elements(sender_id, access_token):
     return elements
 
 
+def add_product_to_cart(sender_id, message, access_token):
+    product_info = message.split("_")
+    product_id = product_info[-1]
+    product_name = product_info[-2]
+    cart_id = f"facebookid_{sender_id}"
+    add_to_cart(access_token, product_id, cart_id)
+    send_message(sender_id, f"Пицца {product_name} добавлена в корзину")
+
+
+def remove_from_cart(sender_id, message, access_token):
+    product_info = message.split("_")
+    product_id = product_info[-1]
+    product_name = product_info[-2]
+    cart_id = f"facebookid_{sender_id}"
+    delete_cart_items(access_token, cart_id, product_id)
+    send_message(sender_id, f"Пицца {product_name} удалена из корзины")
+
+
 def send_menu(sender_id, access_token, slug="basic", type="menu"):
     if type == "cart":
         elements = get_cart_menu_elements(sender_id, access_token)
@@ -265,7 +284,9 @@ def send_menu(sender_id, access_token, slug="basic", type="menu"):
     response.raise_for_status()
 
 
-def handle_start(sender_id, message_text, access_token):
+def handle_start(sender_id, message_text):
+    access_token = DATABASE.get("access_token")
+
     if message_text == "/start":
         send_menu(sender_id, access_token, slug="basic")
     elif "CATEGORY" in message_text:
@@ -274,38 +295,60 @@ def handle_start(sender_id, message_text, access_token):
     return "MENU"
 
 
-def handle_menu(sender_id, message, access_token):
+def handle_menu(sender_id, message):
+    access_token = DATABASE.get("access_token")
+
     if message == "cart":
         send_menu(sender_id, access_token, type=message)
 
         return "CART"
 
     elif "ADD" in message:
-        product_info = message.split("_")
-        product_id = product_info[-1]
-
-        product_name = product_info[-2]
-        cart_id = f"facebookid_{sender_id}"
-        add_to_cart(access_token, product_id, cart_id, 1)
-        send_message(sender_id, f"Пицца {product_name} добавлена в корзину")
+        add_product_to_cart(sender_id, message, access_token)
 
         return "MENU"
 
 
-def handle_cart(sender_id, message, access_token):
+def handle_cart(sender_id, message):
+    access_token = DATABASE.get("access_token")
+
     if message == "menu":
         send_menu(sender_id, access_token, type=message)
 
         return "MENU"
 
+    elif "ADD" in message:
+        add_product_to_cart(sender_id, message, access_token)
 
-def handle_users_reply(sender_id, message_text, access_token):
+        return "CART"
+
+    elif "REMOVE" in message:
+        remove_from_cart(sender_id, message, access_token)
+
+        return "CART"
+
+
+def handle_users_reply(sender_id, message_text, client_id, client_secret, grant_type):
     db = get_database_connection()
 
+    if db.get("token_timestamp"):
+        diff = datetime.timestamp(datetime.now()) - float(db.get("token_timestamp"))
+        client_token_info = get_client_token_info(client_id, client_secret, grant_type)
+        expires_time = client_token_info["expires_in"]
+
+        if diff >= expires_time:
+            db.set("token_timestamp", datetime.timestamp(datetime.now()))
+
+            db.set("access_token", client_token_info["access_token"])
+    else:
+        db.set("token_timestamp", datetime.timestamp(datetime.now()))
+        client_token_info = get_client_token_info(client_id, client_secret, grant_type)
+        db.set("access_token", client_token_info["access_token"])
+
     states_functions = {
-        "START": partial(handle_start, access_token=access_token),
-        "MENU": partial(handle_menu, access_token=access_token),
-        "CART": partial(handle_cart, access_token=access_token),
+        "START": handle_start,
+        "MENU": handle_menu,
+        "CART": handle_cart,
     }
 
     recorded_state = db.get(f"facebookid_{sender_id}")
