@@ -277,7 +277,9 @@ def handle_start(sender_id, message_text, access_token):
 def handle_menu(sender_id, message, access_token):
     if message == "cart":
         send_menu(sender_id, access_token, type=message)
+
         return "CART"
+
     elif "ADD" in message:
         product_info = message.split("_")
         product_id = product_info[-1]
@@ -290,12 +292,20 @@ def handle_menu(sender_id, message, access_token):
         return "MENU"
 
 
+def handle_cart(sender_id, message, access_token):
+    if message == "menu":
+        send_menu(sender_id, access_token, type=message)
+
+        return "MENU"
+
+
 def handle_users_reply(sender_id, message_text, access_token):
     db = get_database_connection()
 
     states_functions = {
         "START": partial(handle_start, access_token=access_token),
         "MENU": partial(handle_menu, access_token=access_token),
+        "CART": partial(handle_cart, access_token=access_token),
     }
 
     recorded_state = db.get(f"facebookid_{sender_id}")
