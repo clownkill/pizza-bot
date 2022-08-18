@@ -23,8 +23,7 @@ app = Flask(__name__)
 DATABASE = None
 
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 
 logger = logging.getLogger(__name__)
@@ -39,9 +38,7 @@ def verify():
     if request.args.get("hub.mode") == "subscribe" and request.args.get(
         "hub.challenge"
     ):
-        if not (
-            request.args.get("hub.verify_token") == os.getenv("VERIFY_TOKEN")
-        ):
+        if not (request.args.get("hub.verify_token") == os.getenv("VERIFY_TOKEN")):
             return "Verification token mismatch", 403
         return request.args["hub.challenge"], 200
 
@@ -64,14 +61,16 @@ def webhook():
                 if messaging_event.get("message"):
                     sender_id = messaging_event["sender"]["id"]
                     message_text = messaging_event["message"]["text"]
-
-                    handle_users_reply(sender_id, message_text, access_token)
+                elif messaging_event.get("postback"):
+                    sender_id = messaging_event["sender"]["id"]
+                    message_text = messaging_event["postback"]["payload"]
+                handle_users_reply(sender_id, message_text, access_token)
 
     return "ok", 200
 
 
-def get_menu_elemets(access_token):
-    products = get_products_by_category(access_token)
+def get_menu_elemets(access_token, slug="basic"):
+    products = get_products_by_category(access_token, slug)
     categories = get_categories(access_token)
 
     elements = [
@@ -126,14 +125,13 @@ def get_menu_elemets(access_token):
     iamge_url = "https://primepizza.ru/uploads/position/large_0c07c6fd5c4dcadddaf4a2f1a2c218760b20c396.jpg"
     category_buttons = []
     for category in categories:
-        if category != "basic":
+        if category != slug:
             title = categories[category]["name"]
-            category_id = categories[category]["id"]
             category_buttons.append(
                 {
                     "type": "postback",
                     "title": title,
-                    "payload": f"CATEGORY_{category_id}",
+                    "payload": f"CATEGORY_{category}",
                 }
             )
 
@@ -149,7 +147,7 @@ def get_menu_elemets(access_token):
     return elements
 
 
-def send_menu(sender_id, access_token):
+def send_menu(sender_id, access_token, slug="basic"):
     headers = {
         "Content-Type": "application/json",
     }
@@ -167,7 +165,7 @@ def send_menu(sender_id, access_token):
                 "type": "template",
                 "payload": {
                     "template_type": "generic",
-                    "elements": get_menu_elemets(access_token),
+                    "elements": get_menu_elemets(access_token, slug),
                 },
             },
         },
@@ -183,9 +181,12 @@ def send_menu(sender_id, access_token):
 
 
 def handle_start(sender_id, message_text, access_token):
-    send_menu(sender_id, access_token)
+    if message_text == "/start":
+        send_menu(sender_id, access_token, slug="basic")
+    elif "CATEGORY" in message_text:
+        send_menu(sender_id, access_token, message_text.split("_")[-1])
 
-    return "MENU"
+    return "START"
 
 
 def handle_users_reply(sender_id, message_text, access_token):
