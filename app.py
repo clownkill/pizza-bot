@@ -55,8 +55,7 @@ def webhook():
                     sender_id = messaging_event["sender"]["id"]
                     recipient_id = messaging_event["recipient"]["id"]
                     message_text = messaging_event["message"]["text"]
-
-                    # send_message(sender_id, message_text)
+                    
                     send_menu(sender_id, access_token)
 
                 if messaging_event.get("delivery"):
@@ -191,49 +190,6 @@ def send_menu(recipient_id, access_token):
                 "payload": {
                     "template_type": "generic",
                     "elements": get_menu_elemets(access_token),
-                },
-            },
-        },
-    }
-
-    response = requests.post(
-        "https://graph.facebook.com/v2.6/me/messages",
-        params=params,
-        headers=headers,
-        json=json_data,
-    )
-
-    if response.status_code != 200:
-        log(response.status_code)
-        log(response.text)
-
-
-def send_keyboard(recipient_id):
-    headers = {
-        "Content-Type": "application/json",
-    }
-
-    params = {
-        "access_token": os.getenv("PAGE_ACCESS_TOKEN"),
-    }
-
-    json_data = {
-        "recipient": {
-            "id": recipient_id,
-        },
-        "message": {
-            "attachment": {
-                "type": "template",
-                "payload": {
-                    "template_type": "button",
-                    "text": "Try the postback button!",
-                    "buttons": [
-                        {
-                            "type": "postback",
-                            "title": "Postback Button",
-                            "payload": "DEVELOPER_DEFINED_PAYLOAD",
-                        },
-                    ],
                 },
             },
         },
