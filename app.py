@@ -41,11 +41,9 @@ def verify():
 def webhook():
     data = request.get_json()
     log(data)
-    access_token = get_client_token_info(
-        client_id,
-        client_secret,
-        grant_type
-    )["access_token"]
+    access_token = get_client_token_info(client_id, client_secret, grant_type)[
+        "access_token"
+    ]
 
     if data["object"] == "page":
 
@@ -106,27 +104,21 @@ def get_menu_elemets(access_token):
             "title": "Меню",
             "image_url": "https://d1csarkz8obe9u.cloudfront.net/posterpreviews/pizza-logo-template-design-183c12cfbe00ef109c299d864f364e58_screen.jpg?ts=1635756978",
             "subtitle": "Здесь вы можете выбрать один из вариантов",
-            "default_action": {
-                "type": "web_url",
-                "url": "https://catalog.onliner.by/mobile/honor/honorx86128bo",
-                "messenger_extensions": False,
-                "webview_height_ratio": "tall",
-            },
             "buttons": [
                 {
-                    "type": "web_url",
-                    "url": "https://catalog.onliner.by",
+                    "type": "postback",
                     "title": "Корзина",
+                    "payload": "CART",
                 },
                 {
-                    "type": "web_url",
-                    "url": "https://catalog.onliner.by",
+                    "type": "postback",
                     "title": "Акции",
+                    "payload": "ACTION",
                 },
                 {
-                    "type": "web_url",
-                    "url": "https://catalog.onliner.by",
+                    "type": "postback",
                     "title": "Сделать заказ",
+                    "payload": "ORDER",
                 },
             ],
         },
@@ -145,17 +137,11 @@ def get_menu_elemets(access_token):
                 "title": title,
                 "image_url": product_image,
                 "subtitle": description,
-                "default_action": {
-                    "type": "web_url",
-                    "url": "https://catalog.onliner.by/mobile/honor/honorx86128bo",
-                    "messenger_extensions": False,
-                    "webview_height_ratio": "tall",
-                },
                 "buttons": [
                     {
-                        "type": "web_url",
-                        "url": "https://catalog.onliner.by",
+                        "type": "postback",
                         "title": "Добавить в корзину",
+                        "payload": f"ADD_{product['id']}",
                     },
                 ],
             },
@@ -164,11 +150,13 @@ def get_menu_elemets(access_token):
     category_buttons = []
     for category in categories:
         if category != "basic":
+            title = categories[category]["name"]
+            category_id = categories[category]["id"]
             category_buttons.append(
                 {
-                    "type": "web_url",
-                    "url": "https://catalog.onliner.by",
-                    "title": categories[category]["name"],
+                    "type": "postback",
+                    "title": title,
+                    "payload": f"CATEGORY_{category_id}",
                 }
             )
 
@@ -177,12 +165,6 @@ def get_menu_elemets(access_token):
             "title": "Не нашли нужную пиццу?",
             "image_url": "https://primepizza.ru/uploads/position/large_0c07c6fd5c4dcadddaf4a2f1a2c218760b20c396.jpg",
             "subtitle": "Остальные пиццы можно посмотреть в одной из категорий",
-            "default_action": {
-                "type": "web_url",
-                "url": "https://catalog.onliner.by/mobile/honor/honorx86128bo",
-                "messenger_extensions": False,
-                "webview_height_ratio": "tall",
-            },
             "buttons": category_buttons,
         },
     )
