@@ -171,13 +171,17 @@ def get_menu_elemets(access_token, slug="basic"):
 def get_cart_menu_elements(sender_id, access_token):
     cart_id = f"facebookid_{sender_id}"
     products = get_cart_items(access_token, cart_id)
-    cart_total_amount = get_cart_total_amount(access_token, cart_id)["meta"][
-        "display_price"
-    ]["with_tax"]["amount"]
+
+    cart_total_amount = get_cart_total_amount(
+        access_token,
+        cart_id
+    )["meta"]["display_price"]["with_tax"]["amount"]
+
+    total_amount = int(int(cart_total_amount) / 100)
 
     elements = [
         {
-            "title": f"Ваш заказ на сумму {int(cart_total_amount) / 100} руб.",
+            "title": f"Ваш заказ на сумму {total_amount} руб.",
             "image_url": "https://postium.ru/wp-content/uploads/2018/08/idealnaya-korzina-internet-magazina-1068x713.jpg",
             "buttons": [
                 {
@@ -319,12 +323,12 @@ def handle_cart(sender_id, message):
 
     elif "ADD" in message:
         add_product_to_cart(sender_id, message, access_token)
-
+        send_menu(sender_id, access_token, type="cart")
         return "CART"
 
     elif "REMOVE" in message:
         remove_from_cart(sender_id, message, access_token)
-
+        send_menu(sender_id, access_token, type="cart")
         return "CART"
 
 
