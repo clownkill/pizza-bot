@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from shop import (
     get_client_token_info,
     get_products,
+    get_categories,
     get_products_by_category,
     get_product,
     get_product_image,
@@ -40,9 +41,11 @@ def verify():
 def webhook():
     data = request.get_json()
     log(data)
-    access_token = get_client_token_info(client_id,
-                                        client_secret,
-                                        grant_type)['access_token']
+    access_token = get_client_token_info(
+        client_id,
+        client_secret,
+        grant_type
+    )["access_token"]
 
     if data["object"] == "page":
 
@@ -94,15 +97,9 @@ def send_message(recipient_id, message_text):
         log(response.text)
 
 
-def send_menu(recipient_id, access_token):
+def get_menu_elemets(access_token):
     products = get_products_by_category(access_token)
-    headers = {
-        "Content-Type": "application/json",
-    }
-
-    params = {
-        "access_token": os.getenv("PAGE_ACCESS_TOKEN"),
-    }
+    categories = get_categories(access_token)
 
     elements = [
         {
@@ -158,11 +155,49 @@ def send_menu(recipient_id, access_token):
                     {
                         "type": "web_url",
                         "url": "https://catalog.onliner.by",
-                        "title": "Здесь будет кнопка",
+                        "title": "Добавить в корзину",
                     },
                 ],
             },
         )
+
+    category_buttons = []
+    for category in categories:
+        if category != "basic":
+            category_buttons.append(
+                {
+                    "type": "web_url",
+                    "url": "https://catalog.onliner.by",
+                    "title": categories[category]["name"],
+                }
+            )
+
+    elements.append(
+        {
+            "title": "Не нашли нужную пиццу?",
+            "image_url": "https://primepizza.ru/uploads/position/large_0c07c6fd5c4dcadddaf4a2f1a2c218760b20c396.jpg",
+            "subtitle": "Остальные пиццы можно посмотреть в одной из категорий",
+            "default_action": {
+                "type": "web_url",
+                "url": "https://catalog.onliner.by/mobile/honor/honorx86128bo",
+                "messenger_extensions": False,
+                "webview_height_ratio": "tall",
+            },
+            "buttons": category_buttons,
+        },
+    )
+
+    return elements
+
+
+def send_menu(recipient_id, access_token):
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    params = {
+        "access_token": os.getenv("PAGE_ACCESS_TOKEN"),
+    }
 
     json_data = {
         "recipient": {
@@ -173,7 +208,7 @@ def send_menu(recipient_id, access_token):
                 "type": "template",
                 "payload": {
                     "template_type": "generic",
-                    "elements": elements,
+                    "elements": get_menu_elemets(access_token),
                 },
             },
         },
