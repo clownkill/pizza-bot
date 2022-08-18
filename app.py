@@ -1,6 +1,8 @@
+import json
 import os
 import logging
 from functools import partial
+import pprint
 
 import requests
 import redis
@@ -8,6 +10,9 @@ from flask import Flask, request
 from dotenv import load_dotenv
 
 from shop import (
+    add_to_cart,
+    get_cart_items,
+    get_cart_total_amount,
     get_client_token_info,
     get_products,
     get_categories,
@@ -69,6 +74,21 @@ def webhook():
     return "ok", 200
 
 
+def send_message(recipient_id, message_text):
+    params = {"access_token": os.getenv("PAGE_ACCESS_TOKEN")}
+    headers = {"Content-Type": "application/json"}
+    data = json.dumps(
+        {"recipient": {"id": recipient_id}, "message": {"text": message_text}}
+    )
+    response = requests.post(
+        "https://graph.facebook.com/v2.6/me/messages",
+        params=params,
+        headers=headers,
+        data=data,
+    )
+    response.raise_for_status()
+
+
 def get_menu_elemets(access_token, slug="basic"):
     products = get_products_by_category(access_token, slug)
     categories = get_categories(access_token)
@@ -82,17 +102,17 @@ def get_menu_elemets(access_token, slug="basic"):
                 {
                     "type": "postback",
                     "title": "Корзина",
-                    "payload": "CART",
+                    "payload": "cart",
                 },
                 {
                     "type": "postback",
                     "title": "Акции",
-                    "payload": "ACTION",
+                    "payload": "action",
                 },
                 {
                     "type": "postback",
                     "title": "Сделать заказ",
-                    "payload": "ORDER",
+                    "payload": "order",
                 },
             ],
         },
@@ -115,7 +135,7 @@ def get_menu_elemets(access_token, slug="basic"):
                     {
                         "type": "postback",
                         "title": "Добавить в корзину",
-                        "payload": f"ADD_{product['id']}",
+                        "payload": f"ADD_{name}_{product['id']}",
                     },
                 ],
             },
@@ -147,7 +167,72 @@ def get_menu_elemets(access_token, slug="basic"):
     return elements
 
 
-def send_menu(sender_id, access_token, slug="basic"):
+def get_cart_menu_elements(sender_id, access_token):
+    cart_id = f"facebookid_{sender_id}"
+    products = get_cart_items(access_token, cart_id)
+    cart_total_amount = get_cart_total_amount(access_token, cart_id)["meta"][
+        "display_price"
+    ]["with_tax"]["amount"]
+
+    elements = [
+        {
+            "title": f"Ваш заказ на сумму {int(cart_total_amount) / 100} руб.",
+            "image_url": "https://postium.ru/wp-content/uploads/2018/08/idealnaya-korzina-internet-magazina-1068x713.jpg",
+            "buttons": [
+                {
+                    "type": "postback",
+                    "title": "Самовывоз",
+                    "payload": "pickup",
+                },
+                {
+                    "type": "postback",
+                    "title": "Доставка",
+                    "payload": "delivery",
+                },
+                {
+                    "type": "postback",
+                    "title": "Меню",
+                    "payload": "menu",
+                },
+            ],
+        },
+    ]
+
+    for product in products:
+        name = product["name"]
+        price = int(product["unit_price"]["amount"] / 100)
+        description = product["description"]
+        title = f"{name} ({price} р)"
+        product_data = get_product(access_token, product["product_id"])
+        product_image = get_product_image(access_token, product_data)
+
+        elements.append(
+            {
+                "title": title,
+                "image_url": product_image,
+                "subtitle": description,
+                "buttons": [
+                    {
+                        "type": "postback",
+                        "title": "Добавить еще одну",
+                        "payload": f"ADD_{name}_{product['id']}",
+                    },
+                    {
+                        "type": "postback",
+                        "title": "Удалить",
+                        "payload": f"REMOVE_{name}_{product['id']}",
+                    },
+                ],
+            },
+        )
+    return elements
+
+
+def send_menu(sender_id, access_token, slug="basic", type="menu"):
+    if type == "cart":
+        elements = get_cart_menu_elements(sender_id, access_token)
+    elif type == "menu":
+        elements = get_menu_elemets(access_token, slug)
     headers = {
         "Content-Type": "application/json",
     }
@@ -165,7 +250,7 @@ def send_menu(sender_id, access_token, slug="basic"):
                 "type": "template",
                 "payload": {
                     "template_type": "generic",
-                    "elements": get_menu_elemets(access_token, slug),
+                    "elements": elements,
                 },
             },
         },
@@ -186,7 +271,23 @@ def handle_start(sender_id, message_text, access_token):
     elif "CATEGORY" in message_text:
         send_menu(sender_id, access_token, message_text.split("_")[-1])
 
-    return "START"
+    return "MENU"
+
+
+def handle_menu(sender_id, message, access_token):
+    if message == "cart":
+        send_menu(sender_id, access_token, type=message)
+        return "CART"
+    elif "ADD" in message:
+        product_info = message.split("_")
+        product_id = product_info[-1]
+
+        product_name = product_info[-2]
+        cart_id = f"facebookid_{sender_id}"
+        add_to_cart(access_token, product_id, cart_id, 1)
+        send_message(sender_id, f"Пицца {product_name} добавлена в корзину")
+
+        return "MENU"
 
 
 def handle_users_reply(sender_id, message_text, access_token):
@@ -194,6 +295,7 @@ def handle_users_reply(sender_id, message_text, access_token):
 
     states_functions = {
         "START": partial(handle_start, access_token=access_token),
+        "MENU": partial(handle_menu, access_token=access_token),
     }
 
     recorded_state = db.get(f"facebookid_{sender_id}")
