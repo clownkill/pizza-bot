@@ -69,6 +69,34 @@ def webhook():
     return "ok", 200
 
 
+def set_menu_cache(access_token):
+    categories = get_categories(access_token)
+
+    DATABASE.set("categories", json.dumps(categories))
+
+    for category in categories:
+        category_products = json.dumps(get_products_by_category(access_token, category))
+        DATABASE.set(category, category_products)
+
+    product_image_urls = {}
+    products = get_products(access_token)
+    for product in products:
+        id = product["id"]
+        product_data = get_product(access_token, id)
+        product_image = get_product_image(access_token, product_data)
+        product_image_urls[id] = product_image
+
+    DATABASE.set("product_image_urls", json.dumps(product_image_urls))
+
+
+def get_category_menu_cache(category):
+    return json.loads(DATABASE.get(category))
+
+
+def get_product_image_cache(product_id):
+    return json.loads(DATABASE.get("product_image_urls"))[product_id]
+
+
 def send_message(recipient_id, message_text):
     params = {"access_token": os.getenv("PAGE_ACCESS_TOKEN")}
     headers = {"Content-Type": "application/json"}
@@ -85,8 +113,8 @@ def send_message(recipient_id, message_text):
 
 
 def get_menu_elemets(access_token, slug="basic"):
-    products = get_products_by_category(access_token, slug)
-    categories = get_categories(access_token)
+    products = get_category_menu_cache(slug)
+    categories = DATABASE.get("categories")
 
     elements = [
         {
@@ -118,8 +146,7 @@ def get_menu_elemets(access_token, slug="basic"):
         price = int(product["price"][0]["amount"] / 100)
         description = product["description"]
         title = f"{name} ({price} р)"
-        product_data = get_product(access_token, product["id"])
-        product_image = get_product_image(access_token, product_data)
+        product_image = get_product_image_cache(product["id"])
 
         elements.append(
             {
@@ -201,8 +228,8 @@ def get_cart_menu_elements(sender_id, access_token):
         price = int(product["unit_price"]["amount"] / 100)
         description = product["description"]
         title = f"{name} ({price} р)"
-        product_data = get_product(access_token, product["product_id"])
-        product_image = get_product_image(access_token, product_data)
+        product_id = product["date"]["product_id"]
+        product_image = get_product_image_cache(product_id)
 
         elements.append(
             {
@@ -213,12 +240,12 @@ def get_cart_menu_elements(sender_id, access_token):
                     {
                         "type": "postback",
                         "title": "Добавить еще одну",
-                        "payload": f"ADD_{name}_{product['id']}",
+                        "payload": f"ADD_{name}_{product_id}",
                     },
                     {
                         "type": "postback",
                         "title": "Удалить",
-                        "payload": f"REMOVE_{name}_{product['id']}",
+                        "payload": f"REMOVE_{name}_{product_id}",
                     },
                 ],
             },
@@ -338,9 +365,10 @@ def handle_users_reply(sender_id, message_text):
         expires_time = client_token_info["expires_in"]
 
         if diff >= expires_time:
+            access_token = client_token_info["access_token"]
             db.set("token_timestamp", datetime.timestamp(datetime.now()))
-
-            db.set("access_token", client_token_info["access_token"])
+            db.set("access_token", access_token)
+            set_menu_cache(access_token)
     else:
         db.set("token_timestamp", datetime.timestamp(datetime.now()))
         client_token_info = get_client_token_info(client_id, client_secret, grant_type)
