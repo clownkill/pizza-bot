@@ -54,10 +54,6 @@ def verify():
 
 @app.route("/", methods=["POST"])
 def webhook():
-    client_id = os.getenv("CLIENT_ID")
-    client_secret = os.getenv("CLIENT_SECRET")
-    grant_type = os.getenv("GRANT_TYPE")
-
     data = request.get_json()
     if data["object"] == "page":
         for entry in data["entry"]:
@@ -68,9 +64,7 @@ def webhook():
                 elif messaging_event.get("postback"):
                     sender_id = messaging_event["sender"]["id"]
                     message_text = messaging_event["postback"]["payload"]
-                handle_users_reply(
-                    sender_id, message_text, client_id, client_secret, grant_type
-                )
+                handle_users_reply(sender_id, message_text)
 
     return "ok", 200
 
@@ -172,10 +166,9 @@ def get_cart_menu_elements(sender_id, access_token):
     cart_id = f"facebookid_{sender_id}"
     products = get_cart_items(access_token, cart_id)
 
-    cart_total_amount = get_cart_total_amount(
-        access_token,
-        cart_id
-    )["meta"]["display_price"]["with_tax"]["amount"]
+    cart_total_amount = get_cart_total_amount(access_token, cart_id)["meta"][
+        "display_price"
+    ]["with_tax"]["amount"]
 
     total_amount = int(int(cart_total_amount) / 100)
 
@@ -332,7 +325,11 @@ def handle_cart(sender_id, message):
         return "CART"
 
 
-def handle_users_reply(sender_id, message_text, client_id, client_secret, grant_type):
+def handle_users_reply(sender_id, message_text):
+    client_id = os.getenv("CLIENT_ID")
+    client_secret = os.getenv("CLIENT_SECRET")
+    grant_type = os.getenv("GRANT_TYPE")
+
     db = get_database_connection()
 
     if db.get("token_timestamp"):
@@ -373,13 +370,10 @@ def handle_users_reply(sender_id, message_text, client_id, client_secret, grant_
 def get_database_connection():
     global DATABASE
     if DATABASE is None:
-        database_password = os.getenv("DATABASE_PASSWORD")
-        database_host = os.getenv("DATABASE_HOST")
-        database_port = os.getenv("DATABASE_PORT")
         DATABASE = redis.Redis(
-            host=database_host,
-            port=database_port,
-            password=database_password,
+            host=os.getenv("DATABASE_HOST"),
+            port=os.getenv("DATABASE_PORT"),
+            password=os.getenv("DATABASE_PASSWORD"),
             decode_responses=True,
         )
     return DATABASE
