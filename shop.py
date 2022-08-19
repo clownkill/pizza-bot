@@ -8,11 +8,11 @@ import requests
 
 
 def get_client_token_info(client_id, client_secret, grant_type):
-    url = 'https://api.moltin.com/oauth/access_token'
+    url = "https://api.moltin.com/oauth/access_token"
     data = {
-        'client_id': client_id,
-        'client_secret': client_secret,
-        'grant_type': grant_type,
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "grant_type": grant_type,
     }
 
     response = requests.post(url, data=data)
@@ -23,29 +23,29 @@ def get_client_token_info(client_id, client_secret, grant_type):
 
 
 def upload_product_image(token, image_url):
-    url = 'https://api.moltin.com/v2/files'
+    url = "https://api.moltin.com/v2/files"
     headers = {
-        'Authorization': f'Bearer {token}',
+        "Authorization": f"Bearer {token}",
     }
     files = {
-        'file_location': (None, image_url),
+        "file_location": (None, image_url),
     }
     response = requests.post(url, headers=headers, files=files)
     response.raise_for_status()
     product_image_info = response.json()
 
-    return product_image_info['data']['id']
+    return product_image_info["data"]["id"]
 
 
 def add_product_image(token, product_id, image_id):
-    url = f'https://api.moltin.com/v2/products/{product_id}/relationships/main-image'
+    url = f"https://api.moltin.com/v2/products/{product_id}/relationships/main-image"
     headers = {
-        'Authorization': f'Bearer {token}',
+        "Authorization": f"Bearer {token}",
     }
     json_data = {
-        'data': {
-            'type': 'main_image',
-            'id': image_id,
+        "data": {
+            "type": "main_image",
+            "id": image_id,
         },
     }
     response = requests.post(url, headers=headers, json=json_data)
@@ -53,27 +53,27 @@ def add_product_image(token, product_id, image_id):
 
 
 def create_product(token, product):
-    url = 'https://api.moltin.com/v2/products'
+    url = "https://api.moltin.com/v2/products"
     headers = {
-        'Authorization': f'Bearer {token}',
+        "Authorization": f"Bearer {token}",
     }
     json_data = {
-        'data': {
-            'type': 'product',
-            'name': product['name'],
-            'slug': str(uuid4())[-12:],
-            'sku': 'sk' + str(product['id']),
-            'description': product['description'],
-            'manage_stock': True,
-            'price': [
+        "data": {
+            "type": "product",
+            "name": product["name"],
+            "slug": str(uuid4())[-12:],
+            "sku": "sk" + str(product["id"]),
+            "description": product["description"],
+            "manage_stock": True,
+            "price": [
                 {
-                    'amount': product['price'] * 100,
-                    'currency': 'RUB',
-                    'includes_tax': True,
+                    "amount": product["price"] * 100,
+                    "currency": "RUB",
+                    "includes_tax": True,
                 },
             ],
-            'status': 'live',
-            'commodity_type': 'physical',
+            "status": "live",
+            "commodity_type": "physical",
         },
     }
 
@@ -81,26 +81,26 @@ def create_product(token, product):
     response.raise_for_status()
 
     stored_product = response.json()
-    stored_product_id = stored_product['data']['id']
-    product_image_url = product['product_image']['url']
+    stored_product_id = stored_product["data"]["id"]
+    product_image_url = product["product_image"]["url"]
     product_image_id = upload_product_image(token, product_image_url)
 
     add_product_image(token, stored_product_id, product_image_id)
 
 
 def add_flows_and_get_id(token, name, description):
-    url = 'https://api.moltin.com/v2/flows'
+    url = "https://api.moltin.com/v2/flows"
     slug = name.lower()
     headers = {
-        'Authorization': f'{token}',
+        "Authorization": f"{token}",
     }
     json_data = {
-        'data': {
-            'type': 'flow',
-            'name': name,
-            'slug': slug,
-            'description': description,
-            'enabled': True,
+        "data": {
+            "type": "flow",
+            "name": name,
+            "slug": slug,
+            "description": description,
+            "enabled": True,
         },
     }
 
@@ -109,29 +109,29 @@ def add_flows_and_get_id(token, name, description):
 
     flows = response.json()
 
-    return flows['data']['id']
+    return flows["data"]["id"]
 
 
 def create_flows_field(token, flow_id, field_name, field_description, field_type):
-    url = 'https://api.moltin.com/v2/fields'
+    url = "https://api.moltin.com/v2/fields"
     headers = {
-        'Authorization': f'{token}',
+        "Authorization": f"{token}",
     }
 
     json_data = {
-        'data': {
-            'type': 'field',
-            'name': field_name,
-            'slug': field_name.lower(),
-            'field_type': field_type,
-            'description': field_description,
-            'required': True,
-            'enabled': True,
-            'relationships': {
-                'flow': {
-                    'data': {
-                        'type': 'flow',
-                        'id': flow_id,
+        "data": {
+            "type": "field",
+            "name": field_name,
+            "slug": field_name.lower(),
+            "field_type": field_type,
+            "description": field_description,
+            "required": True,
+            "enabled": True,
+            "relationships": {
+                "flow": {
+                    "data": {
+                        "type": "flow",
+                        "id": flow_id,
                     },
                 },
             },
@@ -143,21 +143,20 @@ def create_flows_field(token, flow_id, field_name, field_description, field_type
 
 
 def add_pizzeria_info(token, flow_slug, pizzeria):
-    url = f'https://api.moltin.com/v2/flows/{flow_slug}/entries'
+    url = f"https://api.moltin.com/v2/flows/{flow_slug}/entries"
     headers = {
-        'Authorization': f'{token}',
-        'Content-Type': 'application/json',
+        "Authorization": f"{token}",
+        "Content-Type": "application/json",
     }
     json_data = {
-        "data":
-            {
-                'type': "entry",
-                'address': pizzeria['address']['full'],
-                'alias': pizzeria['alias'],
-                'longitude': float(pizzeria['coordinates']['lon']),
-                'latitude': float(pizzeria['coordinates']['lat']),
-                'courier_id': 111111111
-            },
+        "data": {
+            "type": "entry",
+            "address": pizzeria["address"]["full"],
+            "alias": pizzeria["alias"],
+            "longitude": float(pizzeria["coordinates"]["lon"]),
+            "latitude": float(pizzeria["coordinates"]["lat"]),
+            "courier_id": 111111111,
+        },
     }
 
     response = requests.post(url, headers=headers, json=json_data)
@@ -166,19 +165,18 @@ def add_pizzeria_info(token, flow_slug, pizzeria):
 
 def add_customer_address(token, flow_slug, current_position, card_id):
     latitude, longitude = current_position
-    url = f'https://api.moltin.com/v2/flows/{flow_slug}/entries'
+    url = f"https://api.moltin.com/v2/flows/{flow_slug}/entries"
     headers = {
-        'Authorization': f'{token}',
-        'Content-Type': 'application/json',
+        "Authorization": f"{token}",
+        "Content-Type": "application/json",
     }
     json_data = {
-        "data":
-            {
-                "type": "entry",
-                "longitude": longitude,
-                "latitude": latitude,
-                'card-id': card_id,
-            },
+        "data": {
+            "type": "entry",
+            "longitude": longitude,
+            "latitude": latitude,
+            "card-id": card_id,
+        },
     }
 
     response = requests.post(url, headers=headers, json=json_data)
@@ -186,53 +184,65 @@ def add_customer_address(token, flow_slug, current_position, card_id):
 
 
 def get_products(token):
-    url = 'https://api.moltin.com/v2/products/'
+    url = "https://api.moltin.com/v2/products/"
     headers = {
-        'Authorization': f'Bearer {token}',
+        "Authorization": f"Bearer {token}",
     }
 
-    response = requests.get(
-        url,
-        headers=headers
-    )
+    response = requests.get(url, headers=headers)
     response.raise_for_status()
     shop_data = response.json()
 
-    products = shop_data['data']
+    products = shop_data["data"]
+
+    return products
+
+
+def get_products_by_category(token, slug="basic"):
+    categories = get_categories(token)
+    category_id = categories[slug]["id"]
+    url = "https://api.moltin.com/v2/products"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+    }
+
+    params = {
+        "filter": f"eq(category.id,{category_id})",
+    }
+
+    response = requests.get(url, headers=headers, params=params)
+    response.raise_for_status()
+
+    products = response.json()["data"]
 
     return products
 
 
 def get_product(token, product_id):
-    url = f'https://api.moltin.com/v2/products/{product_id}'
+    url = f"https://api.moltin.com/v2/products/{product_id}"
     headers = {
-        'Authorization': f'Bearer {token}',
+        "Authorization": f"Bearer {token}",
     }
 
-    response = requests.get(
-        url,
-        headers=headers
-    )
+    response = requests.get(url, headers=headers)
     response.raise_for_status()
     product = response.json()
 
-    return product['data']
+    return product["data"]
 
 
 def get_product_image(token, product_data):
-    image_id = product_data['relationships']['main_image']['data']['id']
-    url = f'https://api.moltin.com/v2/files/{image_id}'
+    image_id = product_data["relationships"]["main_image"]["data"]["id"]
+    url = f"https://api.moltin.com/v2/files/{image_id}"
     headers = {
-        'Authorization': f'Bearer {token}',
+        "Authorization": f"Bearer {token}",
     }
 
-    response = requests.get(
-        url,
-        headers=headers
-    )
+    response = requests.get(url, headers=headers)
     response.raise_for_status()
     product_files = response.json()
-    image_url = product_files['data']['link']['href']
+    image_url = product_files["data"]["link"]["href"]
 
     image = requests.get(image_url)
     image.raise_for_status()
@@ -240,62 +250,52 @@ def get_product_image(token, product_data):
     return image_url
 
 
-def add_to_cart(token, product_id, cart_id, quantity):
-    url = f'https://api.moltin.com/v2/carts/{cart_id}/items'
+def add_to_cart(token, product_id, cart_id, quantity=1):
+    url = f"https://api.moltin.com/v2/carts/{cart_id}/items"
     headers = {
-        'Authorization': f'Bearer {token}',
+        "Authorization": f"Bearer {token}",
     }
 
     json_data = {
-        'data': {
-            'id': product_id,
-            'type': 'cart_item',
-            'quantity': quantity,
+        "data": {
+            "id": product_id,
+            "type": "cart_item",
+            "quantity": quantity,
         },
     }
 
-    response = requests.post(
-        url,
-        headers=headers,
-        json=json_data
-    )
+    response = requests.post(url, headers=headers, json=json_data)
     response.raise_for_status()
 
 
 def get_cart_items(token, cart_id):
-    url = f'https://api.moltin.com/v2/carts/{cart_id}/items'
+    url = f"https://api.moltin.com/v2/carts/{cart_id}/items"
     headers = {
-        'Authorization': f'Bearer {token}',
+        "Authorization": f"Bearer {token}",
     }
 
-    response = requests.get(
-        url,
-        headers=headers
-    )
+    response = requests.get(url, headers=headers)
     response.raise_for_status()
 
-    return response.json()['data']
+    return response.json()["data"]
 
 
 def get_cart_total_amount(token, cart_id):
-    url = f'https://api.moltin.com/v2/carts/{cart_id}'
+    url = f"https://api.moltin.com/v2/carts/{cart_id}"
     headers = {
-        'Authorization': f'Bearer {token}',
+        "Authorization": f"Bearer {token}",
     }
 
-    response = requests.get(
-        url,
-        headers=headers
-    )
+    response = requests.get(url, headers=headers)
     response.raise_for_status()
 
-    return response.json()['data']
+    return response.json()["data"]
 
 
 def delete_cart_items(token, cart_id, item_id):
-    url = f'https://api.moltin.com/v2/carts/{cart_id}/items/{item_id}'
+    url = f"https://api.moltin.com/v2/carts/{cart_id}/items/{item_id}"
     headers = {
-        'Authorization': f'Bearer {token}',
+        "Authorization": f"Bearer {token}",
     }
 
     response = requests.delete(url, headers=headers)
@@ -303,16 +303,16 @@ def delete_cart_items(token, cart_id, item_id):
 
 
 def create_customer(token, user_name, email):
-    url = 'https://api.moltin.com/v2/customers'
+    url = "https://api.moltin.com/v2/customers"
     headers = {
-        'Authorization': f'Bearer {token}',
+        "Authorization": f"Bearer {token}",
     }
 
     json_data = {
-        'data': {
-            'type': 'customer',
-            'name': user_name,
-            'email': email,
+        "data": {
+            "type": "customer",
+            "name": user_name,
+            "email": email,
         },
     }
 
@@ -321,14 +321,14 @@ def create_customer(token, user_name, email):
 
 
 def get_addresses():
-    with open('pizzas_json/addresses.json', 'r') as fin:
+    with open("pizzas_json/addresses.json", "r") as fin:
         addresses = json.load(fin)
 
     return addresses
 
 
 def get_menu():
-    with open('pizzas_json/menu.json', 'r') as fin:
+    with open("pizzas_json/menu.json", "r") as fin:
         menu = json.load(fin)
 
     return menu
@@ -342,9 +342,13 @@ def add_products(token, menu):
 def add_model_fields(token, flow_id):
     # create_flows_field(token, flow_id, 'Address', 'Pizzeria address', 'string')
     # create_flows_field(token, flow_id, 'Alias', 'Alias for pizzeria', 'string')
-    create_flows_field(token, flow_id, 'Longitude', 'Longitude pizzeria coordinates', 'float')
-    create_flows_field(token, flow_id, 'Latitude', 'Latitude pizzeria coordinates', 'float')
-    create_flows_field(token, flow_id, 'Card-id', 'ID', 'integer')
+    create_flows_field(
+        token, flow_id, "Longitude", "Longitude pizzeria coordinates", "float"
+    )
+    create_flows_field(
+        token, flow_id, "Latitude", "Latitude pizzeria coordinates", "float"
+    )
+    create_flows_field(token, flow_id, "Card-id", "ID", "integer")
 
 
 def add_pizzerias(token, flow_slug, pizzerias):
@@ -353,10 +357,10 @@ def add_pizzerias(token, flow_slug, pizzerias):
 
 
 def get_pizzerias(token, flow_slug):
-    url = f'https://api.moltin.com/v2/flows/{flow_slug}/entries'
+    url = f"https://api.moltin.com/v2/flows/{flow_slug}/entries"
 
     headers = {
-        'Authorization': f'Bearer {token}',
+        "Authorization": f"Bearer {token}",
     }
 
     response = requests.get(url, headers=headers)
@@ -366,23 +370,46 @@ def get_pizzerias(token, flow_slug):
 
     pizzerias_location = {}
 
-    for pizzeria in pizzerias['data']:
-        address = pizzeria['address']
-        lat = pizzeria['latitude']
-        lon = pizzeria['longitude']
+    for pizzeria in pizzerias["data"]:
+        address = pizzeria["address"]
+        lat = pizzeria["latitude"]
+        lon = pizzeria["longitude"]
 
         pizzerias_location[address] = (lat, lon)
 
     return pizzerias_location
 
 
-if __name__ == '__main__':
+def get_categories(token):
+    url = "https://api.moltin.com/v2/categories"
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+    }
+
+    response = requests.get(
+        url,
+        headers=headers,
+    )
+    response.raise_for_status()
+
+    categories = {}
+    for category in response.json()["data"]:
+        slug = category["slug"]
+        id = category["id"]
+        name = category["name"]
+        categories[slug] = {
+            "id": id,
+            "name": name,
+        }
+
+    return categories
+
+
+if __name__ == "__main__":
     load_dotenv()
-    client_id = os.getenv('CLIENT_ID')
-    client_secret = os.getenv('CLIENT_SECRET')
-    grant_type = os.getenv('GRANT_TYPE')
+    client_id = os.getenv("CLIENT_ID")
+    client_secret = os.getenv("CLIENT_SECRET")
+    grant_type = os.getenv("GRANT_TYPE")
 
-    token = get_client_token_info(client_id, client_secret, grant_type)['access_token']
-
-    flow_id = add_flows_and_get_id(token, 'Customer-Addresses', 'Customer coordinates')
-    add_model_fields(token, flow_id)
+    token = get_client_token_info(client_id, client_secret, grant_type)["access_token"]
