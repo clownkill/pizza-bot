@@ -2,8 +2,6 @@ import json
 import os
 import logging
 from datetime import datetime
-from functools import partial
-import pprint
 
 import requests
 import redis
@@ -114,7 +112,7 @@ def send_message(recipient_id, message_text):
 
 def get_menu_elemets(access_token, slug="basic"):
     products = get_category_menu_cache(slug)
-    categories = DATABASE.get("categories")
+    categories = json.loads(DATABASE.get("categories"))
 
     elements = [
         {
@@ -176,7 +174,6 @@ def get_menu_elemets(access_token, slug="basic"):
                     "payload": f"CATEGORY_{category}",
                 }
             )
-
     elements.append(
         {
             "title": "Не нашли нужную пиццу?",
@@ -222,13 +219,12 @@ def get_cart_menu_elements(sender_id, access_token):
             ],
         },
     ]
-
     for product in products:
         name = product["name"]
         price = int(product["unit_price"]["amount"] / 100)
         description = product["description"]
         title = f"{name} ({price} р)"
-        product_id = product["date"]["product_id"]
+        product_id = product["product_id"]
         product_image = get_product_image_cache(product_id)
 
         elements.append(
@@ -310,44 +306,51 @@ def send_menu(sender_id, access_token, slug="basic", type="menu"):
 
 def handle_start(sender_id, message_text):
     access_token = DATABASE.get("access_token")
-
     if message_text == "/start":
-        send_menu(sender_id, access_token, slug="basic")
+        send_menu(sender_id, access_token)
+
+        return "START"
+
     elif "CATEGORY" in message_text:
         send_menu(sender_id, access_token, message_text.split("_")[-1])
 
-    return "MENU"
+        return "MENU"
 
 
-def handle_menu(sender_id, message):
+def handle_menu(sender_id, message_text):
     access_token = DATABASE.get("access_token")
 
-    if message == "cart":
-        send_menu(sender_id, access_token, type=message)
+    if message_text == "cart":
+        send_menu(sender_id, access_token, type=message_text)
 
         return "CART"
 
-    elif "ADD" in message:
-        add_product_to_cart(sender_id, message, access_token)
+    elif "CATEGORY" in message_text:
+        send_menu(sender_id, access_token, message_text.split("_")[-1])
+
+        return "MENU"
+
+    elif "ADD" in message_text:
+        add_product_to_cart(sender_id, message_text, access_token)
 
         return "MENU"
 
 
-def handle_cart(sender_id, message):
+def handle_cart(sender_id, message_text):
     access_token = DATABASE.get("access_token")
 
-    if message == "menu":
-        send_menu(sender_id, access_token, type=message)
+    if message_text == "menu":
+        send_menu(sender_id, access_token, type=message_text)
 
         return "MENU"
 
-    elif "ADD" in message:
-        add_product_to_cart(sender_id, message, access_token)
+    elif "ADD" in message_text:
+        add_product_to_cart(sender_id, message_text, access_token)
         send_menu(sender_id, access_token, type="cart")
         return "CART"
 
-    elif "REMOVE" in message:
-        remove_from_cart(sender_id, message, access_token)
+    elif "REMOVE" in message_text:
+        remove_from_cart(sender_id, message_text, access_token)
         send_menu(sender_id, access_token, type="cart")
         return "CART"
 
@@ -363,7 +366,6 @@ def handle_users_reply(sender_id, message_text):
         diff = datetime.timestamp(datetime.now()) - float(db.get("token_timestamp"))
         client_token_info = get_client_token_info(client_id, client_secret, grant_type)
         expires_time = client_token_info["expires_in"]
-
         if diff >= expires_time:
             access_token = client_token_info["access_token"]
             db.set("token_timestamp", datetime.timestamp(datetime.now()))
