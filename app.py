@@ -306,15 +306,14 @@ def send_menu(sender_id, access_token, slug="basic", type="menu"):
 
 def handle_start(sender_id, message_text):
     access_token = DATABASE.get("access_token")
-    if message_text == "/start":
-        send_menu(sender_id, access_token)
 
-        return "START"
-
-    elif "CATEGORY" in message_text:
+    if "CATEGORY" in message_text:
         send_menu(sender_id, access_token, message_text.split("_")[-1])
 
         return "MENU"
+
+    send_menu(sender_id, access_token)
+    return "MENU"
 
 
 def handle_menu(sender_id, message_text):
@@ -332,8 +331,12 @@ def handle_menu(sender_id, message_text):
 
     elif "ADD" in message_text:
         add_product_to_cart(sender_id, message_text, access_token)
+        send_menu(sender_id, access_token)
 
         return "MENU"
+    else:
+        send_menu(sender_id, access_token)
+        return "START"
 
 
 def handle_cart(sender_id, message_text):
@@ -353,6 +356,9 @@ def handle_cart(sender_id, message_text):
         remove_from_cart(sender_id, message_text, access_token)
         send_menu(sender_id, access_token, type="cart")
         return "CART"
+
+    send_menu(sender_id, access_token, type="cart")
+    return "CART"
 
 
 def handle_users_reply(sender_id, message_text):
