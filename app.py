@@ -225,6 +225,7 @@ def get_cart_menu_elements(sender_id, access_token):
         description = product["description"]
         title = f"{name} ({price} р)"
         product_id = product["product_id"]
+        cart_item_id = product["id"]
         product_image = get_product_image_cache(product_id)
 
         elements.append(
@@ -241,7 +242,7 @@ def get_cart_menu_elements(sender_id, access_token):
                     {
                         "type": "postback",
                         "title": "Удалить",
-                        "payload": f"REMOVE_{name}_{product_id}",
+                        "payload": f"REMOVE_{name}_{cart_item_id}",
                     },
                 ],
             },
