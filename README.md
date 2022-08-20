@@ -25,6 +25,8 @@ REDIS_PORT=[Порт базы данных Redis]
 REDIS_DB_PSWD=[Пароль к базе данных Redis]
 YANDEX_TOKEN=[Токен для доступа к API Yandex Geocoder]
 PAY_TOKEN=[Токен для платежной системы]
+PAGE_ACCESS_TOKEN=[Токен для страницы бота в Facebook]
+VERIFY_TOKEN=[Токен для валидации вебхука в Facebook]
 ```
 
 ## Как запустить
@@ -33,6 +35,17 @@ PAY_TOKEN=[Токен для платежной системы]
 ```
 python tg_bot.py
 ```
+
+* Для запуска facebook-бота с помощью локального вебхука:
+- создать [страницу Facebook](https://www.facebook.com/bookmarks/pages?ref_type=logout_gear).
+- [создать приложение](https://developers.facebook.com/apps/).
+- получить токен с правами на messenger.
+- выполнить ```gunicorn app:app```.
+- выполнить ```ngrok http 127.0.0.1:8000```.
+- подключить вебхук к facebook:
+![connect webhook](https://dvmn.org/filer/canonical/1565713044/201/)
+- добавить подписки (messages, messaging_postbacks) для вебхука:
+![add subscriptions](https://dvmn.org/filer/canonical/1565713044/202/)
 
 ## Цель проекта
 
