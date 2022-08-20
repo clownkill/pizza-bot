@@ -110,7 +110,7 @@ def send_message(recipient_id, message_text):
     response.raise_for_status()
 
 
-def get_menu_elemets(access_token, slug="basic"):
+def get_menu_elemets(slug="basic"):
     products = get_category_menu_cache(slug)
     categories = json.loads(DATABASE.get("categories"))
 
@@ -272,7 +272,7 @@ def send_menu(sender_id, access_token, slug="basic", type="menu"):
     if type == "cart":
         elements = get_cart_menu_elements(sender_id, access_token)
     elif type == "menu":
-        elements = get_menu_elemets(access_token, slug)
+        elements = get_menu_elemets(slug)
     headers = {
         "Content-Type": "application/json",
     }
