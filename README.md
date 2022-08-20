@@ -39,7 +39,14 @@ python tg_bot.py
 * Для запуска facebook-бота с помощью локального вебхука:
 - создать [страницу Facebook](https://www.facebook.com/bookmarks/pages?ref_type=logout_gear).
 - [создать приложение](https://developers.facebook.com/apps/).
-- получить токен с правами на messenger.
+- получить токен с правами на messenger:
+![token_1](https://dvmn.org/filer/canonical/1565713050/213/)
+![token_2](https://dvmn.org/filer/canonical/1565713050/214/)
+![token_3](https://dvmn.org/filer/canonical/1565713041/195/)
+![token_4](https://dvmn.org/filer/canonical/1565713041/196/)
+![token_5](https://dvmn.org/filer/canonical/1565713042/197/)
+![token_6](https://dvmn.org/filer/canonical/1565713043/199/)
+![token_7](https://dvmn.org/filer/canonical/1565713043/200/)
 - выполнить ```gunicorn app:app```.
 - выполнить ```ngrok http 127.0.0.1:8000```.
 - подключить вебхук к facebook:
