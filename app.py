@@ -1,12 +1,15 @@
 import json
 import os
 import logging
+import re
 from datetime import datetime
+from textwrap import dedent
 
 import requests
 import redis
 from flask import Flask, request
 from dotenv import load_dotenv
+from yandex_geocoder import Client, exceptions
 
 from shop import (
     add_to_cart,
@@ -19,7 +22,10 @@ from shop import (
     get_products_by_category,
     get_product,
     get_product_image,
+    get_pizzerias,
+    create_customer,
 )
+from utilits import get_nearest_pizzeria
 
 load_dotenv()
 
@@ -250,8 +256,8 @@ def get_cart_menu_elements(sender_id, access_token):
     return elements
 
 
-def add_product_to_cart(sender_id, message, access_token):
-    product_info = message.split("_")
+def add_product_to_cart(sender_id, message_text, access_token):
+    product_info = message_text.split("_")
     product_id = product_info[-1]
     product_name = product_info[-2]
     cart_id = f"facebookid_{sender_id}"
@@ -259,13 +265,31 @@ def add_product_to_cart(sender_id, message, access_token):
     send_message(sender_id, f"Пицца {product_name} добавлена в корзину")
 
 
-def remove_from_cart(sender_id, message, access_token):
-    product_info = message.split("_")
+def remove_from_cart(sender_id, message_text, access_token):
+    product_info = message_text.split("_")
     product_id = product_info[-1]
     product_name = product_info[-2]
     cart_id = f"facebookid_{sender_id}"
     delete_cart_items(access_token, cart_id, product_id)
     send_message(sender_id, f"Пицца {product_name} удалена из корзины")
+
+
+def get_target_pizzeria(sender_id, address):
+    access_token = DATABASE.get("access_token")
+    yandex_token = os.getenv("YANDEX_TOKEN")
+
+    try:
+        client = Client(yandex_token)
+        lon, lat = client.coordinates(address)
+        current_position = float(lat), float(lon)
+    except exceptions.NothingFound:
+        send_message(sender_id, "Не удалось определить координаты")
+
+    flow_slug = "pizzeria"
+    pizzerias = get_pizzerias(access_token, flow_slug)
+    pizzeria_address, distance = get_nearest_pizzeria(current_position, pizzerias)
+
+    return pizzeria_address, distance
 
 
 def send_menu(sender_id, access_token, slug="basic", type="menu"):
@@ -358,8 +382,80 @@ def handle_cart(sender_id, message_text):
         send_menu(sender_id, access_token, type="cart")
         return "CART"
 
+    elif message_text == "pickup":
+        send_message(sender_id, "Введите свой адрес")
+        return "PICKUP"
+
+    elif message_text == "delivery":
+        send_message(sender_id, "Введите свой адрес")
+        return "DELIVERY"
+
     send_menu(sender_id, access_token, type="cart")
     return "CART"
+
+
+def handle_pickup(sender_id, message_text):
+    pizzeria_address, distance = get_target_pizzeria(sender_id, message_text)
+    message = f"""Ближайшая пиццерия находится по адресу {pizzeria_address}.
+    До нее {(distance):.2f} км. Приходите за своей пиццей!"""
+    send_message(sender_id, message)
+
+    send_message(sender_id, "Для завершения заказа пришлите свой email")
+
+    return "EMAIL"
+
+
+def handle_delivery(sender_id, message_text):
+    pizzeria_address, distance = get_target_pizzeria(sender_id, message_text)
+    if distance <= 0.5:
+        message = f"""
+        Может, заберете пиццу из нашей пиццерии неподалеку?
+
+        Она всего в {(distance):.2f} метрах от Вас!
+        Вот её адрес: {pizzeria_address}.
+
+        А можем и бесплатно оставить, нам не сложно))
+        """
+    elif 0.5 < distance <= 5:
+        message = f"""
+        Доставим Вашу пиццу за 100 рублей.
+
+        Или можете забрать ее по адресу: {pizzeria_address}
+        """
+    elif 5 < distance <= 20:
+        message = f"""
+        Доставим Вашу пиццу за 300 рублей.
+
+        Или можете забрать ее по адресу: {pizzeria_address}
+        """
+    else:
+        message = f"""
+        Простите, но так далеко мы пиццу не доставим.
+
+        Ближайшая пиццерия аж в {distance:.2f} километрах от Вас.
+
+        Заезжайте к нам в гости: {pizzeria_address}
+        """
+
+    send_message(sender_id, dedent(message))
+
+    send_message(sender_id, "Для завершения заказа пришлите свой email")
+
+    return "EMAIL"
+
+
+def handle_email(sender_id, message_text):
+    access_token = DATABASE.get("access_token")
+    username = f"facebookid_{sender_id}"
+
+    if re.search(r"^\w+@\w+\.\w+$", message_text):
+        send_message(sender_id, "Спасибо за заказ!")
+        create_customer(access_token, username, message_text)
+        send_menu(sender_id, access_token)
+        return "START"
+
+    send_message(sender_id, "Введите корректный email")
+    return "EMAIL"
 
 
 def handle_users_reply(sender_id, message_text):
@@ -388,6 +484,9 @@ def handle_users_reply(sender_id, message_text):
         "START": handle_start,
         "MENU": handle_menu,
         "CART": handle_cart,
+        "PICKUP": handle_pickup,
+        "DELIVERY": handle_delivery,
+        "EMAIL": handle_email,
     }
 
     recorded_state = db.get(f"facebookid_{sender_id}")
