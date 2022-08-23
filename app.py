@@ -254,18 +254,16 @@ def get_cart_menu_elements(sender_id, access_token):
 
 
 def add_product_to_cart(sender_id, message_text, access_token):
-    product_info = message_text.split("_")
-    product_id = product_info[-1]
-    product_name = product_info[-2]
+    product_info = message_text.split("_")[1:]
+    product_name, product_id = product_info
     cart_id = f"facebookid_{sender_id}"
     add_to_cart(access_token, product_id, cart_id)
     send_message(sender_id, f"Пицца {product_name} добавлена в корзину")
 
 
 def remove_from_cart(sender_id, message_text, access_token):
-    product_info = message_text.split("_")
-    product_id = product_info[-1]
-    product_name = product_info[-2]
+    product_info = message_text.split("_")[1:]
+    product_name, product_id = product_info
     cart_id = f"facebookid_{sender_id}"
     delete_cart_items(access_token, cart_id, product_id)
     send_message(sender_id, f"Пицца {product_name} удалена из корзины")
