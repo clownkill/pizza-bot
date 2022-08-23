@@ -194,9 +194,8 @@ def get_cart_menu_elements(sender_id, access_token):
     cart_id = f"facebookid_{sender_id}"
     products = get_cart_items(access_token, cart_id)
 
-    cart_total_amount = get_cart_total_amount(access_token, cart_id)["meta"][
-        "display_price"
-    ]["with_tax"]["amount"]
+    cart_meta_info = get_cart_total_amount(access_token, cart_id)["meta"]
+    cart_total_amount = cart_meta_info["display_price"]["with_tax"]["amount"]
 
     total_amount = int(int(cart_total_amount) / 100)
 
