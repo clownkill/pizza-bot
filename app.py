@@ -98,14 +98,6 @@ def set_menu_cache(access_token):
     DATABASE.set("product_image_urls", json.dumps(product_image_urls))
 
 
-def get_category_menu_cache(category):
-    return json.loads(DATABASE.get(category))
-
-
-def get_product_image_cache(product_id):
-    return json.loads(DATABASE.get("product_image_urls"))[product_id]
-
-
 def send_message(recipient_id, message_text):
     params = {"access_token": os.getenv("PAGE_ACCESS_TOKEN")}
     headers = {"Content-Type": "application/json"}
@@ -122,7 +114,7 @@ def send_message(recipient_id, message_text):
 
 
 def get_menu_elemets(slug="basic"):
-    products = get_category_menu_cache(slug)
+    products = json.loads(DATABASE.get(slug))
     categories = json.loads(DATABASE.get("categories"))
 
     elements = [
@@ -152,10 +144,11 @@ def get_menu_elemets(slug="basic"):
 
     for product in products:
         name = product["name"]
+        product_id = product["id"]
         price = int(product["price"][0]["amount"] / 100)
         description = product["description"]
         title = f"{name} ({price} р)"
-        product_image = get_product_image_cache(product["id"])
+        product_image = json.loads(DATABASE.get("product_image_urls"))[product_id]
 
         elements.append(
             {
@@ -237,7 +230,7 @@ def get_cart_menu_elements(sender_id, access_token):
         title = f"{name} ({price} р)"
         product_id = product["product_id"]
         cart_item_id = product["id"]
-        product_image = get_product_image_cache(product_id)
+        product_image = json.loads(DATABASE.get("product_image_urls"))[product_id]
 
         elements.append(
             {
