@@ -59,16 +59,21 @@ def verify():
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.get_json()
-    if data["object"] == "page":
-        for entry in data["entry"]:
-            for messaging_event in entry["messaging"]:
-                if messaging_event.get("message"):
-                    sender_id = messaging_event["sender"]["id"]
-                    message_text = messaging_event["message"]["text"]
-                elif messaging_event.get("postback"):
-                    sender_id = messaging_event["sender"]["id"]
-                    message_text = messaging_event["postback"]["payload"]
-                handle_users_reply(sender_id, message_text)
+
+    if not data["object"] == "page":
+        return "wrong data", 500
+
+    for entry in data["entry"]:
+        for messaging_event in entry["messaging"]:
+            if messaging_event.get("message"):
+                sender_id = messaging_event["sender"]["id"]
+                message_text = messaging_event["message"]["text"]
+
+            elif messaging_event.get("postback"):
+                sender_id = messaging_event["sender"]["id"]
+                message_text = messaging_event["postback"]["payload"]
+
+            handle_users_reply(sender_id, message_text)
 
     return "ok", 200
 
