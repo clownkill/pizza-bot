@@ -40,7 +40,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def error(state, error):
+def log_error(state, error):
     logger.warning(f"State {state} caused error {error}")
 
 
@@ -501,7 +501,7 @@ def handle_users_reply(sender_id, message_text):
         next_state = state_handler(sender_id, message_text)
         db.set(f"facebookid_{sender_id}", next_state)
     except Exception as err:
-        error(user_state, err)
+        log_error(user_state, err)
 
 
 def get_database_connection():
@@ -517,4 +517,4 @@ def get_database_connection():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)
