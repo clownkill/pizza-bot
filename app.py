@@ -480,7 +480,8 @@ def handle_users_reply(sender_id, message_text):
     else:
         db.set("token_timestamp", datetime.timestamp(datetime.now()))
         client_token_info = get_client_token_info(client_id, client_secret, grant_type)
-        db.set("access_token", client_token_info["access_token"])
+        access_token = client_token_info["access_token"]
+        db.set("access_token", access_token)
         set_menu_cache(access_token)
 
     states_functions = {
