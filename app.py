@@ -40,7 +40,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def error(state, error):
+def log_error(state, error):
     logger.warning(f"State {state} caused error {error}")
 
 
@@ -59,28 +59,34 @@ def verify():
 @app.route("/", methods=["POST"])
 def webhook():
     data = request.get_json()
-    if data["object"] == "page":
-        for entry in data["entry"]:
-            for messaging_event in entry["messaging"]:
-                if messaging_event.get("message"):
-                    sender_id = messaging_event["sender"]["id"]
-                    message_text = messaging_event["message"]["text"]
-                elif messaging_event.get("postback"):
-                    sender_id = messaging_event["sender"]["id"]
-                    message_text = messaging_event["postback"]["payload"]
-                handle_users_reply(sender_id, message_text)
+
+    if not data["object"] == "page":
+        return "wrong data", 500
+
+    for entry in data["entry"]:
+        for messaging_event in entry["messaging"]:
+            if messaging_event.get("message"):
+                sender_id = messaging_event["sender"]["id"]
+                message_text = messaging_event["message"]["text"]
+
+            elif messaging_event.get("postback"):
+                sender_id = messaging_event["sender"]["id"]
+                message_text = messaging_event["postback"]["payload"]
+
+            handle_users_reply(sender_id, message_text)
 
     return "ok", 200
 
 
 def set_menu_cache(access_token):
+    db = get_database_connection()
     categories = get_categories(access_token)
 
-    DATABASE.set("categories", json.dumps(categories))
+    db.set("categories", json.dumps(categories))
 
     for category in categories:
         category_products = json.dumps(get_products_by_category(access_token, category))
-        DATABASE.set(category, category_products)
+        db.set(category, category_products)
 
     product_image_urls = {}
     products = get_products(access_token)
@@ -90,15 +96,7 @@ def set_menu_cache(access_token):
         product_image = get_product_image(access_token, product_data)
         product_image_urls[id] = product_image
 
-    DATABASE.set("product_image_urls", json.dumps(product_image_urls))
-
-
-def get_category_menu_cache(category):
-    return json.loads(DATABASE.get(category))
-
-
-def get_product_image_cache(product_id):
-    return json.loads(DATABASE.get("product_image_urls"))[product_id]
+    db.set("product_image_urls", json.dumps(product_image_urls))
 
 
 def send_message(recipient_id, message_text):
@@ -117,8 +115,9 @@ def send_message(recipient_id, message_text):
 
 
 def get_menu_elemets(slug="basic"):
-    products = get_category_menu_cache(slug)
-    categories = json.loads(DATABASE.get("categories"))
+    db = get_database_connection()
+    products = json.loads(db.get(slug))
+    categories = json.loads(db.get("categories"))
 
     elements = [
         {
@@ -147,10 +146,11 @@ def get_menu_elemets(slug="basic"):
 
     for product in products:
         name = product["name"]
+        product_id = product["id"]
         price = int(product["price"][0]["amount"] / 100)
         description = product["description"]
         title = f"{name} ({price} р)"
-        product_image = get_product_image_cache(product["id"])
+        product_image = json.loads(db.get("product_image_urls"))[product_id]
 
         elements.append(
             {
@@ -193,12 +193,12 @@ def get_menu_elemets(slug="basic"):
 
 
 def get_cart_menu_elements(sender_id, access_token):
+    db = get_database_connection()
     cart_id = f"facebookid_{sender_id}"
     products = get_cart_items(access_token, cart_id)
 
-    cart_total_amount = get_cart_total_amount(access_token, cart_id)["meta"][
-        "display_price"
-    ]["with_tax"]["amount"]
+    cart_meta_info = get_cart_total_amount(access_token, cart_id)["meta"]
+    cart_total_amount = cart_meta_info["display_price"]["with_tax"]["amount"]
 
     total_amount = int(int(cart_total_amount) / 100)
 
@@ -232,7 +232,7 @@ def get_cart_menu_elements(sender_id, access_token):
         title = f"{name} ({price} р)"
         product_id = product["product_id"]
         cart_item_id = product["id"]
-        product_image = get_product_image_cache(product_id)
+        product_image = json.loads(db.get("product_image_urls"))[product_id]
 
         elements.append(
             {
@@ -257,25 +257,24 @@ def get_cart_menu_elements(sender_id, access_token):
 
 
 def add_product_to_cart(sender_id, message_text, access_token):
-    product_info = message_text.split("_")
-    product_id = product_info[-1]
-    product_name = product_info[-2]
+    product_info = message_text.split("_")[1:]
+    product_name, product_id = product_info
     cart_id = f"facebookid_{sender_id}"
     add_to_cart(access_token, product_id, cart_id)
     send_message(sender_id, f"Пицца {product_name} добавлена в корзину")
 
 
 def remove_from_cart(sender_id, message_text, access_token):
-    product_info = message_text.split("_")
-    product_id = product_info[-1]
-    product_name = product_info[-2]
+    product_info = message_text.split("_")[1:]
+    product_name, product_id = product_info
     cart_id = f"facebookid_{sender_id}"
     delete_cart_items(access_token, cart_id, product_id)
     send_message(sender_id, f"Пицца {product_name} удалена из корзины")
 
 
 def get_target_pizzeria(sender_id, address):
-    access_token = DATABASE.get("access_token")
+    db = get_database_connection()
+    access_token = db.get("access_token")
     yandex_token = os.getenv("YANDEX_TOKEN")
 
     try:
@@ -330,7 +329,8 @@ def send_menu(sender_id, access_token, slug="basic", type="menu"):
 
 
 def handle_start(sender_id, message_text):
-    access_token = DATABASE.get("access_token")
+    db = get_database_connection()
+    access_token = db.get("access_token")
 
     if "CATEGORY" in message_text:
         send_menu(sender_id, access_token, message_text.split("_")[-1])
@@ -342,7 +342,8 @@ def handle_start(sender_id, message_text):
 
 
 def handle_menu(sender_id, message_text):
-    access_token = DATABASE.get("access_token")
+    db = get_database_connection()
+    access_token = db.get("access_token")
 
     if message_text == "cart":
         send_menu(sender_id, access_token, type=message_text)
@@ -365,7 +366,8 @@ def handle_menu(sender_id, message_text):
 
 
 def handle_cart(sender_id, message_text):
-    access_token = DATABASE.get("access_token")
+    db = get_database_connection()
+    access_token = db.get("access_token")
 
     if message_text == "menu":
         send_menu(sender_id, access_token, type=message_text)
@@ -445,7 +447,8 @@ def handle_delivery(sender_id, message_text):
 
 
 def handle_email(sender_id, message_text):
-    access_token = DATABASE.get("access_token")
+    db = get_database_connection()
+    access_token = db.get("access_token")
     username = f"facebookid_{sender_id}"
 
     if re.search(r"^\w+@\w+\.\w+$", message_text):
@@ -477,7 +480,8 @@ def handle_users_reply(sender_id, message_text):
     else:
         db.set("token_timestamp", datetime.timestamp(datetime.now()))
         client_token_info = get_client_token_info(client_id, client_secret, grant_type)
-        db.set("access_token", client_token_info["access_token"])
+        access_token = client_token_info["access_token"]
+        db.set("access_token", access_token)
         set_menu_cache(access_token)
 
     states_functions = {
@@ -501,7 +505,7 @@ def handle_users_reply(sender_id, message_text):
         next_state = state_handler(sender_id, message_text)
         db.set(f"facebookid_{sender_id}", next_state)
     except Exception as err:
-        error(user_state, err)
+        log_error(user_state, err)
 
 
 def get_database_connection():
@@ -517,4 +521,4 @@ def get_database_connection():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)
